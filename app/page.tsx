@@ -99,7 +99,7 @@ function HomeContent() {
   return (
     <main className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">ParadaYa</h1>
-      {showCompassOverlay && <CompassOverlay stops={nearestFiveStops} />}
+      {showCompassOverlay && <CompassOverlay />}
       {showAllStations ? (
         <> 
           <Button onClick={() => setShowAllStations(false)} className="mb-4">
