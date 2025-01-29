@@ -102,14 +102,12 @@ export default function CompassOverlay() {
 
     if (nearestStops.length === 0) return
     // FIX: Используем nearestStops из контекста
-    nearestStops.forEach((stop) => {
-      const stopLat = parseFloat(stop.lat)
-      const stopLon = parseFloat(stop.lon)
-      
-      // Рассчет реального расстояния и направления
-      const distKm = distanceKm(userLat, userLon, stopLat, stopLon)
-      const bearing = getBearing(userLat, userLon, stopLat, stopLon)
-      const angleRad = deg2rad(bearing)
+    nearestStops.forEach((stop, index) => {
+        // Example: we put them each 3km away from center, spaced by 72 degrees
+        // If you want real bearings, you'd do actual math with lat/lon
+        const distKm = 3 + index // pretend each further
+        const angleDeg = index * (360 / 5) // space them around
+        const angleRad = angleDeg * (Math.PI / 180)
 
       const r = distKm * scalePxPerKm
       const x = r * Math.cos(angleRad)
@@ -158,7 +156,7 @@ export default function CompassOverlay() {
     <canvas
       ref={canvasRef}
       style={{
-        position: "fixed",
+        position: "absolute",
         top: 0,
         left: 0,
         pointerEvents: "none",
