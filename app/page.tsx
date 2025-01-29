@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { BusStopProvider, useBusStops } from "../lib/BusStopContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import StopCompass from "./components/StopCompass"
+import CompassOverlay from "./components/CompassOverlay"
 
 function HomeContent() {
   const [sortBy, setSortBy] = useState<"nearest" | "soonest">("nearest")
