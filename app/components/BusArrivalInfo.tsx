@@ -81,11 +81,25 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
       <h4 className="text-sm font-semibold mb-1">Next Buses:</h4>
       {buses.length > 0 ? (
         <ul className="space-y-1">
-          {buses.map((bus, index) => (
-            <li key={index} className="text-sm">
-              BUS {bus.line} - {bus.minutes} minutes
-            </li>
-          ))}
+          {buses.map((bus, index) => {
+            const minutesNumber = parseInt(bus.minutes.split(' ')[0]) // Extract number before "min."
+            const isQuickArrival = minutesNumber < 5
+            
+            return (
+              <li key={index} className="text-sm flex items-center">
+                <span className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center mr-2">
+                  {bus.line}
+                </span>
+                <span
+                  className={`${
+                    isQuickArrival ? 'text-green-500 font-bold' : 'text-gray-700'
+                  }`}
+                >
+                  {bus.minutes}
+                </span>
+              </li>
+            )
+          })}
         </ul>
       ) : (
         <p className="text-sm text-gray-500">No buses found for this stop</p>
@@ -95,5 +109,7 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
       </Button>
     </div>
   )
+  
+  
 }
 

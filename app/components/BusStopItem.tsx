@@ -67,13 +67,13 @@ export default function BusStopItem({ stop, sortBy, onSelectStop, userLocation }
       </div>
       <div className="text-sm text-gray-600 mb-2">
         {sortBy === "nearest" && userLocation
-          ? `Distance: ${calculateDistance(
+          ? `Distancia: ${calculateDistance(
               userLocation.latitude,
               userLocation.longitude,
               Number.parseFloat(stop.lat),
               Number.parseFloat(stop.lon),
             ).toFixed(2)} km`
-          : `Next bus: TBD`}
+          : `Proxima bus: TBD`}
       </div>
       {isVisible && <BusArrivalInfo stopId={stop.stopId} />}
     </li>
