@@ -72,30 +72,44 @@ export default function CompassOverlay() {
     ctx.fillStyle = "blue"
     ctx.fill()
 
-    const scalePxPerKm = 5
-    const userLat = userLocation.latitude
-    const userLon = userLocation.longitude
+    const scalePxPerKm = 1000; // Увеличиваем масштаб для лучшей видимости
+    const userLat = userLocation.latitude;
+    const userLon = userLocation.longitude;
 
     nearestStops.forEach((stop) => {
-      const distKm = distanceKm(userLat, userLon, stop.lat, stop.lon)
-      const bearing = getBearing(userLat, userLon, stop.lat, stop.lon)
-      const angleRad = deg2rad(bearing)
+      // Проверяем, что координаты остановки - числа
+      const stopLat = Number(stop.lat);
+      const stopLon = Number(stop.lon);
+      
+      // Вычисляем расстояние и азимут
+      const distKm = distanceKm(userLat, userLon, stopLat, stopLon);
+      const bearing = getBearing(userLat, userLon, stopLat, stopLon);
+      
+      // Корректируем азимут с учетом текущего направления устройства
+      const adjustedBearing = (bearing - heading + 360) % 360;
+      const angleRad = deg2rad(adjustedBearing);
 
-      const r = distKm * scalePxPerKm
-      const x = r * Math.cos(angleRad)
-      const y = r * Math.sin(angleRad)
+      // Пересчитываем координаты с учетом масштаба
+      const r = distKm * scalePxPerKm;
+      const x = r * Math.sin(angleRad); // Используем sin для X
+      const y = -r * Math.cos(angleRad); // Используем -cos для Y
 
-      ctx.beginPath()
-      ctx.arc(x, y, 5, 0, 2 * Math.PI)
-      ctx.fillStyle = "red"
-      ctx.fill()
+      // Отрисовываем только видимые в текущем масштабе точки
+      if (Math.abs(x) < width/2 && Math.abs(y) < height/2) {
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fillStyle = "#ff4757";
+        ctx.fill();
 
-      ctx.font = "12px sans-serif"
-      ctx.fillStyle = "black"
-      ctx.fillText(stop.name, x + 8, y + 4)
-    })
+        // Добавляем текст с названием остановки
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText(stop.name, x, y - 12);
+      }
+    });
 
-    ctx.restore()
+    ctx.restore();
   }
 
   function handleResize() {
