@@ -44,7 +44,7 @@ export default function StopCompass({ isActive, onToggle }: StopCompassProps) {
       variant={isActive ? "default" : "outline"}
     >
       {permissionGranted 
-        ? (isActive ? "🙈" : "🧭") 
+        ? (isActive ? "🦇" : "🧭") 
         : "🧭"}
     </Button>
   )
