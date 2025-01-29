@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { BusStopProvider, useBusStops } from "../lib/BusStopContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import CompassOverlay from "./components/CompassOverlay"
+import StopCompass from "./components/StopCompass"
 
 function HomeContent() {
   const [sortBy, setSortBy] = useState<"nearest" | "soonest">("nearest")
@@ -120,8 +121,9 @@ function HomeContent() {
                 <SelectItem value="Infinity">All stations</SelectItem>
               </SelectContent>
             </Select>
+            <StopCompass />
               <Button onClick={() => setShowAllStations(true)} className="mb-4">
-              View All Stations
+              TODO
             </Button>
           </div>
           
