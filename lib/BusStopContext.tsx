@@ -66,7 +66,7 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
         const distB = distanceKm(userLocation.latitude, userLocation.longitude, b.lat, b.lon)
         return distA - distB
       })
-      .slice(0, 5)
+      .slice(0, 3)
   }, [filteredStops, userLocation])
 
   return (
