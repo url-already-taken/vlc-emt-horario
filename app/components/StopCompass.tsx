@@ -1,38 +1,51 @@
-import React, { useState } from "react";
+// StopCompass.tsx
+"use client"
 
-export default function StopCompass() {
-  const [permissionGranted, setPermissionGranted] = useState(false);
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 
-  // Request permission for device orientation (iOS specific)
-  function requestOrientationPermission() {
-    if (
-      typeof DeviceOrientationEvent !== "undefined" &&
-      typeof (DeviceOrientationEvent as any).requestPermission === "function"
-    ) {
-      (DeviceOrientationEvent as any)
-        .requestPermission()
-        .then((permissionState: string) => {
-          if (permissionState === "granted") {
-            setPermissionGranted(true);
+interface StopCompassProps {
+  isActive: boolean
+  onToggle: (newState: boolean) => void
+}
+
+export default function StopCompass({ isActive, onToggle }: StopCompassProps) {
+  const [permissionGranted, setPermissionGranted] = useState(false)
+
+  const handleClick = async () => {
+    if (!permissionGranted) {
+      try {
+        if (
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof (DeviceOrientationEvent as any).requestPermission === "function"
+        ) {
+          const permission = await (DeviceOrientationEvent as any).requestPermission()
+          if (permission === "granted") {
+            setPermissionGranted(true)
+            onToggle(true)
           } else {
-            alert("Permission not granted for sensor data.");
+            alert("Для работы компаса необходимо разрешение на доступ к датчикам")
           }
-        })
-        .catch(console.error);
+        } else {
+          setPermissionGranted(true)
+          onToggle(true)
+        }
+      } catch (error) {
+        console.error("Ошибка при запросе разрешения:", error)
+      }
     } else {
-      // For non-iOS devices that don't require permission
-      setPermissionGranted(true);
+      onToggle(!isActive)
     }
   }
 
   return (
-    <div style={{ textAlign: "center", padding: "1em" }}>
-      <button 
-        onClick={requestOrientationPermission}
-        disabled={permissionGranted}
-      >
-        {permissionGranted ? "🙈" : "🧭"}
-      </button>
-    </div>
-  );
+    <Button 
+      onClick={handleClick}
+      variant={isActive ? "default" : "outline"}
+    >
+      {permissionGranted 
+        ? (isActive ? "🙈" : "🧭") 
+        : "🧭"}
+    </Button>
+  )
 }
