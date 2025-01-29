@@ -10,7 +10,6 @@ import AllStations from "./components/AllStations"
 import { Button } from "@/components/ui/button"
 import { BusStopProvider, useBusStops } from "../lib/BusStopContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import CompassOverlay from "./components/CompassOverlay"
 import StopCompass from "./components/StopCompass"
 
 function HomeContent() {
