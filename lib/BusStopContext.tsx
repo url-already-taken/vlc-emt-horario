@@ -1,6 +1,9 @@
-import type React from "react"
+"use client"
+
 import { createContext, useContext, useState, useEffect, useMemo } from "react"
-import { fetchBusStops, type BusStop } from "./busStopService"
+import { fetchBusStops } from "./busStopService"
+import { distanceKm } from "./geoUtils"
+import { BusStop } from "./busStopTypes"
 
 interface Location {
   latitude: number
@@ -15,26 +18,10 @@ interface BusStopContextType {
   setUserLocation: (location: Location) => void
   filteredStops: BusStop[]
   setDistanceFilter: (distance: number) => void
-  nearestStops: BusStop[]
+  nearestStops: BusStop[]   // <--- добавляем сюда
 }
 
 const BusStopContext = createContext<BusStopContextType | undefined>(undefined)
-
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371 // Radius of the earth in km
-  const dLat = deg2rad(lat2 - lat1)
-  const dLon = deg2rad(lon2 - lon1)
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  const d = R * c // Distance in km
-  return d
-}
-
-function deg2rad(deg: number): number {
-  return deg * (Math.PI / 180)
-}
 
 export function BusStopProvider({ children }: { children: React.ReactNode }) {
   const [stops, setStops] = useState<BusStop[]>([])
@@ -57,34 +44,30 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
       }
     }
-
     loadStops()
   }, [])
 
-  const filteredStops = userLocation
-    ? stops.filter((stop) => {
-        const distance = calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
-          Number.parseFloat(stop.lat),
-          Number.parseFloat(stop.lon),
-        )
-        return distance <= distanceFilter
-      })
-    : stops
+  // фильтрованные остановки по distanceFilter
+  const filteredStops = useMemo(() => {
+    if (!userLocation) return stops
+    return stops.filter((stop) => {
+      const dist = distanceKm(userLocation.latitude, userLocation.longitude, stop.lat, stop.lon)
+      return dist <= distanceFilter
+    })
+  }, [stops, userLocation, distanceFilter])
 
+  // ближайшие 5
   const nearestStops = useMemo(() => {
-      if (!userLocation || !filteredStops.length) return [];
-      
-      return filteredStops
-        .slice()
-        .sort((a, b) => {
-          const distA = calculateDistance(userLocation.latitude, userLocation.longitude, a.latitude, a.longitude);
-          const distB = calculateDistance(userLocation.latitude, userLocation.longitude, b.latitude, b.longitude);
-          return distA - distB;
-        })
-        .slice(0, 5);
-    }, [filteredStops, userLocation]);
+    if (!userLocation) return []
+    return filteredStops
+      .slice()
+      .sort((a, b) => {
+        const distA = distanceKm(userLocation.latitude, userLocation.longitude, a.lat, a.lon)
+        const distB = distanceKm(userLocation.latitude, userLocation.longitude, b.lat, b.lon)
+        return distA - distB
+      })
+      .slice(0, 5)
+  }, [filteredStops, userLocation])
 
   return (
     <BusStopContext.Provider
@@ -96,6 +79,7 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
         setUserLocation,
         filteredStops,
         setDistanceFilter,
+        nearestStops
       }}
     >
       {children}
@@ -105,9 +89,8 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
 
 export function useBusStops() {
   const context = useContext(BusStopContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useBusStops must be used within a BusStopProvider")
   }
   return context
 }
-
