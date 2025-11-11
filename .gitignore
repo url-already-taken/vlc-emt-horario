@@ -27,3 +27,9 @@ yarn-error.log*
 next-env.d.ts
 \n# macOS\n.DS_Store
 \n# Temp files\nhelpgpt.txt\nnodem.txt\nqwen.txt
+.DS_Store
+app/.DS_Store
+app/components/.DS_Store
+helpgpt.txt
+nodem.txt
+qwen.txt
