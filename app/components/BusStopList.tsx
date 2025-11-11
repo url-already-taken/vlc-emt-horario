@@ -12,25 +12,30 @@ interface BusStopListProps {
 
 export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) {
   const { filteredStops, loading, error, userLocation } = useBusStops()
-  const [savedCharacters, setSavedCharacters] = useState<Record<string, string>>({})
+  const [favoriteStops, setFavoriteStops] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (typeof window === "undefined") return
     try {
-      const stored = window.localStorage.getItem("bus-stop-characters")
+      const stored = window.localStorage.getItem("bus-stop-favorites")
       if (stored) {
-        setSavedCharacters(JSON.parse(stored))
+        setFavoriteStops(JSON.parse(stored))
       }
     } catch (err) {
-      console.error("Error reading saved characters:", err)
+      console.error("Error reading saved favorites:", err)
     }
   }, [])
 
-  const handleSaveCharacter = (stopId: string, character: string) => {
-    setSavedCharacters((prev) => {
-      const updated = { ...prev, [stopId]: character }
+  const handleToggleFavorite = (stopId: string) => {
+    setFavoriteStops((prev) => {
+      const updated = { ...prev }
+      if (updated[stopId]) {
+        delete updated[stopId]
+      } else {
+        updated[stopId] = true
+      }
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("bus-stop-characters", JSON.stringify(updated))
+        window.localStorage.setItem("bus-stop-favorites", JSON.stringify(updated))
       }
       return updated
     })
@@ -59,8 +64,8 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
             sortBy={sortBy}
             onSelectStop={onSelectStop}
             userLocation={userLocation}
-            savedCharacter={savedCharacters[stop.stopId]}
-            onSaveCharacter={handleSaveCharacter}
+            isFavorite={Boolean(favoriteStops[stop.stopId])}
+            onToggleFavorite={handleToggleFavorite}
           />
         ))
       ) : (

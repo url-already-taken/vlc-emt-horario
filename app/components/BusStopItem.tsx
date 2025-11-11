@@ -9,8 +9,8 @@ interface BusStopItemProps {
   sortBy: "nearest" | "soonest"
   onSelectStop: (stop: BusStop) => void
   userLocation: { latitude: number; longitude: number } | null
-  savedCharacter?: string
-  onSaveCharacter: (stopId: string, character: string) => void
+  isFavorite: boolean
+  onToggleFavorite: (stopId: string) => void
 }
 
 export default function BusStopItem({
@@ -18,12 +18,10 @@ export default function BusStopItem({
   sortBy,
   onSelectStop,
   userLocation,
-  savedCharacter,
-  onSaveCharacter,
+  isFavorite,
+  onToggleFavorite,
 }: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [inputValue, setInputValue] = useState("")
   const ref = useRef<HTMLLIElement>(null)
 
   useEffect(() => {
@@ -53,49 +51,20 @@ export default function BusStopItem({
   return (
     <li ref={ref} className="border rounded p-4">
       <div className="flex justify-between items-center mb-2">
-        <span className="font-semibold">{stop.name}</span>
+        <span className="font-semibold flex items-center space-x-2">
+          <span>{stop.name}</span>
+          {isFavorite && <span className="text-yellow-500" aria-label="Избранная остановка">★</span>}
+        </span>
         <Button onClick={() => onSelectStop(stop)} variant="ghost">
           Ver Details
         </Button>
-        <div className="flex items-center space-x-2">
-          {/* Show saved character or edit field */}
-          {savedCharacter ? (
-            <span className="text-blue-500 font-bold">{savedCharacter}</span>
-          ) : isEditing ? (
-            <>
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                maxLength={1}
-                className="w-8 text-center border rounded"
-              />
-              <Button
-                onClick={() => {
-                  if (inputValue.length === 1) {
-                    onSaveCharacter(stop.stopId, inputValue)
-                    setIsEditing(false)
-                    setInputValue("")
-                  } else {
-                    alert("Please enter exactly one character.")
-                  }
-                }}
-                variant="ghost"
-                size="sm"
-              >
-                Save
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => setIsEditing(true)}
-              variant="ghost"
-              size="sm"
-            >
-              Edit
-            </Button>
-          )}
-        </div>
+        <Button
+          onClick={() => onToggleFavorite(stop.stopId)}
+          variant={isFavorite ? "default" : "outline"}
+          size="sm"
+        >
+          {isFavorite ? "★ В избранном" : "☆ В избранное"}
+        </Button>
       </div>
       <div className="text-sm text-gray-600 mb-2">
         {sortBy === "nearest" && userLocation
