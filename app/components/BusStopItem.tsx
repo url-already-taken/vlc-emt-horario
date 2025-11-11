@@ -10,9 +10,17 @@ interface BusStopItemProps {
   onSelectStop: (stop: BusStop) => void
   userLocation: { latitude: number; longitude: number } | null
   savedCharacter?: string
+  onSaveCharacter: (stopId: string, character: string) => void
 }
 
-export default function BusStopItem({ stop, sortBy, onSelectStop, userLocation, savedCharacter }: BusStopItemProps) {
+export default function BusStopItem({
+  stop,
+  sortBy,
+  onSelectStop,
+  userLocation,
+  savedCharacter,
+  onSaveCharacter,
+}: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [inputValue, setInputValue] = useState("")
@@ -42,25 +50,6 @@ export default function BusStopItem({ stop, sortBy, onSelectStop, userLocation, 
     }
   }, [])
 
-  const saveCharacter = async (stopId: string, character: string) => {
-    try {
-      const response = await fetch("/api/save-character", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ stopId, character }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save character");
-      }
-
-    } catch (error) {
-      console.error("Error saving character:", error);
-    }
-  };
-
   return (
     <li ref={ref} className="border rounded p-4">
       <div className="flex justify-between items-center mb-2">
@@ -84,7 +73,7 @@ export default function BusStopItem({ stop, sortBy, onSelectStop, userLocation, 
               <Button
                 onClick={() => {
                   if (inputValue.length === 1) {
-                    saveCharacter(stop.stopId, inputValue)
+                    onSaveCharacter(stop.stopId, inputValue)
                     setIsEditing(false)
                     setInputValue("")
                   } else {

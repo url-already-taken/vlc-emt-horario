@@ -15,21 +15,26 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
   const [savedCharacters, setSavedCharacters] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    const fetchSavedCharacters = async () => {
-      try {
-        const response = await fetch("/api/save-character")
-        if (!response.ok) {
-          throw new Error("Failed to fetch saved characters")
-        }
-        const data = await response.json()
-        setSavedCharacters(data)
-      } catch (err) {
-        console.error("Error fetching saved characters:", err)
+    if (typeof window === "undefined") return
+    try {
+      const stored = window.localStorage.getItem("bus-stop-characters")
+      if (stored) {
+        setSavedCharacters(JSON.parse(stored))
       }
+    } catch (err) {
+      console.error("Error reading saved characters:", err)
     }
-
-    fetchSavedCharacters()
   }, [])
+
+  const handleSaveCharacter = (stopId: string, character: string) => {
+    setSavedCharacters((prev) => {
+      const updated = { ...prev, [stopId]: character }
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("bus-stop-characters", JSON.stringify(updated))
+      }
+      return updated
+    })
+  }
 
   const sortedStops = useMemo(() => {
     if (!filteredStops.length) return []
@@ -55,6 +60,7 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
             onSelectStop={onSelectStop}
             userLocation={userLocation}
             savedCharacter={savedCharacters[stop.stopId]}
+            onSaveCharacter={handleSaveCharacter}
           />
         ))
       ) : (

@@ -61,8 +61,6 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
           line: lineaMatch[1],
           minutes: minutosMatch[1],
         })
-      } else {
-        console.warn(`Incomplete bus data in XML block for stop ${stopId}:`, block)
       }
     }
 
@@ -78,21 +76,15 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
       {buses.length > 0 ? (
         <ul className="space-y-1">
           {buses.map((bus, index) => {
-            const minutesNumber = parseInt(bus.minutes.split(' ')[0]) // Extract number before "min."
-            const isQuickArrival = minutesNumber < 5
-            
+            const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
+            const isQuickArrival = !Number.isNaN(minutesNumber) && minutesNumber < 5
+
             return (
-              <li key={index} className="text-sm flex items-center">
+              <li key={`${stopId}-${index}`} className="text-sm flex items-center">
                 <span className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center mr-2">
                   {bus.line}
                 </span>
-                <span
-                  className={`${
-                    isQuickArrival ? 'text-green-500 font-bold' : 'text-gray-700'
-                  }`}
-                >
-                  {bus.minutes}
-                </span>
+                <span className={isQuickArrival ? "text-green-500 font-bold" : "text-gray-700"}>{bus.minutes}</span>
               </li>
             )
           })}
@@ -105,6 +97,4 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
       </Button>
     </div>
   )
-  
-  
 }
