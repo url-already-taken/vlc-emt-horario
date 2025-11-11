@@ -25,11 +25,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-\n# macOS\n.DS_Store
-\n# Temp files\nhelpgpt.txt\nnodem.txt\nqwen.txt
+
+# macOS
+.DS_Store
+
+# Temp files
+helpgpt.txt
+nodem.txt
+qwen.txt
 .DS_Store
 app/.DS_Store
 app/components/.DS_Store
 helpgpt.txt
 nodem.txt
 qwen.txt
+
+# Ignore temporary directories
+nexxt/
+nexxt1/
