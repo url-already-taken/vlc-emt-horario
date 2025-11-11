@@ -8,6 +8,9 @@ def scan_directory(path, extensions):
     with "name", "type": "directory", and "children". Each file is
     represented as a dictionary with "name", "type": "file", and "content".
     """
+
+    if "node_modules" in path:
+        return []
     structure = []
 
     # List all items in the current directory
