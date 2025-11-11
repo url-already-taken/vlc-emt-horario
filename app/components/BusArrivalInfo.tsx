@@ -77,7 +77,7 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
         <ul className="space-y-1">
           {buses.map((bus, index) => {
             const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
-            const isQuickArrival = !Number.isNaN(minutesNumber) && minutesNumber < 5
+            const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
 
             return (
               <li key={`${stopId}-${index}`} className="text-sm flex items-center">

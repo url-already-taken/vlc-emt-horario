@@ -55,9 +55,6 @@ export default function BusStopItem({
           <span>{stop.name}</span>
           {isFavorite && <span className="text-yellow-500" aria-label="Избранная остановка">★</span>}
         </span>
-        <Button onClick={() => onSelectStop(stop)} variant="ghost">
-          Ver Details
-        </Button>
         <Button
           onClick={() => onToggleFavorite(stop.stopId)}
           variant={isFavorite ? "default" : "outline"}
@@ -77,6 +74,11 @@ export default function BusStopItem({
           : `Proxima bus: TBD`}
       </div>
       {isVisible && <BusArrivalInfo stopId={stop.stopId} />}
+      <div className="flex justify-end mt-2">
+        <Button onClick={() => onSelectStop(stop)} variant="ghost">
+          Ver Details
+        </Button>
+      </div>
     </li>
   )
 }
