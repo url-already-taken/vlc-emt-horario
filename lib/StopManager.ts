@@ -13,7 +13,6 @@ export class StopManager {
       const response = await fetch(url)
       const xmlText = await response.text()
       this.parseXML(xmlText)
-      console.log("Fetched and parsed stops:", this.stops.length)
     } catch (error) {
       console.error("Error fetching stops:", error)
     }
@@ -48,7 +47,6 @@ export class StopManager {
         routes,
       }
     })
-    console.log("Parsed stops:", this.stops.length)
   }
 
   filterByName(name: string) {
@@ -67,4 +65,3 @@ export class StopManager {
     return this.stops
   }
 }
-

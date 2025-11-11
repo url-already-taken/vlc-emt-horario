@@ -1,24 +1,7 @@
-export interface Route {
-  headSign: string
-  id_linea: string
-  LN: string
-  SN: string
-  type: string
-}
-
-export interface BusStop {
-  lat: string
-  lon: string
-  name: string
-  stopId: string
-  ubica: string
-  routes: Route[]
-}
+import type { BusStop, Route } from "./busStopTypes"
 
 export async function fetchBusStops(apiUrl: string): Promise<BusStop[]> {
   try {
-    console.log("Fetching URL:", apiUrl)
-
     const response = await fetch(apiUrl)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -26,10 +9,7 @@ export async function fetchBusStops(apiUrl: string): Promise<BusStop[]> {
 
     const data = await response.json()
 
-    console.log("Raw JSON Response:", JSON.stringify(data, null, 2))
-
     const stopsArray = Array.isArray(data.stop) ? data.stop : []
-    console.log(`Found ${stopsArray.length} stops`)
 
     const stops: BusStop[] = stopsArray.map((item: any) => {
       const rtIValue = item.routes?.rtI
@@ -43,17 +23,18 @@ export async function fetchBusStops(apiUrl: string): Promise<BusStop[]> {
         type: route.type,
       }))
 
+      const lat = Number.parseFloat(item.lat ?? "0")
+      const lon = Number.parseFloat(item.lon ?? "0")
+
       return {
-        lat: item.lat,
-        lon: item.lon,
+        lat: Number.isFinite(lat) ? lat : 0,
+        lon: Number.isFinite(lon) ? lon : 0,
         name: item.name,
         stopId: item.stopId,
         ubica: item.ubica,
         routes,
       }
     })
-
-    console.log("Parsed Stops:", JSON.stringify(stops, null, 2))
 
     return stops
   } catch (error) {
@@ -78,4 +59,3 @@ export function filterStopsByRoute(stops: BusStop[], route: string): BusStop[] {
     ),
   )
 }
-

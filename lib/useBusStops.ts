@@ -32,8 +32,6 @@ export function useBusStops() {
       const apiUrl =
         "https://geoportal.emtvalencia.es/opentripplanner-api-webapp/ws/metadata/stopsInExtent?lowerCornerLon=-0.4187679290778661&lowerCornerLat=39.431221084842264&upperCornerLon=-0.33207893371653785&upperCornerLat=39.51099400566781"
 
-      console.log("Fetching URL:", apiUrl)
-
       // Use a CORS proxy to bypass CORS restrictions
       const corsProxyUrl = "https://cors-anywhere.herokuapp.com/"
       const response = await fetch(apiUrl)
@@ -43,8 +41,6 @@ export function useBusStops() {
       }
 
       const xmlText = await response.text()
-      console.log("Raw XML Response:", xmlText)
-
       const parser = new DOMParser()
       const xmlDoc = parser.parseFromString(xmlText, "text/xml")
 
@@ -55,7 +51,6 @@ export function useBusStops() {
       }
 
       const stopElements = xmlDoc.querySelectorAll("stop")
-      console.log(`Found ${stopElements.length} stops`)
 
       const parsedStops: BusStop[] = Array.from(stopElements).map((stopElem) => {
         const stop: BusStop = {
@@ -79,7 +74,6 @@ export function useBusStops() {
         return stop
       })
 
-      console.log("Parsed Stops:", JSON.stringify(parsedStops, null, 2))
       setStops(parsedStops)
     } catch (error) {
       console.error("Error in fetchBusStops:", error)
@@ -91,4 +85,3 @@ export function useBusStops() {
 
   return { stops, loading, error }
 }
-

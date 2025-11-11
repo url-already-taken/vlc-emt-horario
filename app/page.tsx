@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { mockBusStops, sortBusStops, type BusStop } from "../lib/mockData"
+import { useState, useEffect } from "react"
+import type { BusStop } from "../lib/busStopTypes"
 import SearchBar from "./components/SearchBar"
-import SortToggle from "./components/SortToggle"
 import BusStopList from "./components/BusStopList"
 import BusStopDetail from "./components/BusStopDetail"
 import AllStations from "./components/AllStations"
@@ -18,34 +17,7 @@ function HomeContent() {
   const [selectedStop, setSelectedStop] = useState<BusStop | null>(null)
   const [showAllStations, setShowAllStations] = useState(false)
   const [showCompassOverlay, setShowCompassOverlay] = useState(false)
-  const { setUserLocation, setDistanceFilter, filteredStops, userLocation } = useBusStops()
-
-  const nearestFiveStops = useMemo(() => {
-    if (!userLocation || !filteredStops?.length) return []
-    const { latitude: lat1, longitude: lon1 } = userLocation
-
-    // Simple haversine or basic function:
-    function distanceKm(latA: number, lonA: number, latB: number, lonB: number) {
-      const R = 6371
-      const dLat = ((latB - latA) * Math.PI) / 180
-      const dLon = ((lonB - lonA) * Math.PI) / 180
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((latA * Math.PI) / 180) *
-          Math.cos((latB * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2)
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-      return R * c
-    }
-    
-      return filteredStops.slice().sort((a, b) => {
-        const distA = distanceKm(lat1, lon1, a.latitude, a.longitude);
-        const distB = distanceKm(lat1, lon1, b.latitude, b.longitude);
-        return distA - distB;
-    }).slice(0, 5)
-
-  }, [filteredStops, userLocation])
+  const { setUserLocation, setDistanceFilter, loading, error } = useBusStops()
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -60,13 +32,10 @@ function HomeContent() {
           console.error("Error getting user location:", error)
         },
       )
-    } else {
-      console.log("Geolocation is not available in this browser.")
     }
   }, [setUserLocation])
 
   const handleSearch = (query: string) => {
-    console.log("Searching for:", query)
     // Implement search functionality here
   }
 
@@ -83,13 +52,7 @@ function HomeContent() {
           console.error("Error getting user location:", error)
         },
       )
-    } else {
-      console.log("Geolocation is not available in this browser.")
     }
-  }
-
-  const handleSortChange = (newSortBy: "nearest" | "soonest") => {
-    setSortBy(newSortBy)
   }
 
   const handleDistanceFilterChange = (value: string) => {
@@ -131,8 +94,14 @@ function HomeContent() {
             </Button>
           </div>
           
-          <BusStopList sortBy={sortBy} onSelectStop={setSelectedStop} />
-          {selectedStop && <BusStopDetail stop={selectedStop} onClose={() => setSelectedStop(null)} />}
+          {loading && <div className="mt-4">Loading stops...</div>}
+          {error && !loading && <div className="mt-4 text-red-600">{error}</div>}
+          {!loading && !error && (
+            <>
+              <BusStopList sortBy={sortBy} onSelectStop={setSelectedStop} />
+              {selectedStop && <BusStopDetail stop={selectedStop} onClose={() => setSelectedStop(null)} />}
+            </>
+          )}
         </>
       )}
     </main>

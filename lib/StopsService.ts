@@ -6,26 +6,21 @@ export class StopsService {
     this.url =
       "https://geoportal.emtvalencia.es/opentripplanner-api-webapp/ws/metadata/stopsInExtent?lowerCornerLon=-0.4187679290778661&lowerCornerLat=39.431221084842264&upperCornerLon=-0.33207893371653785&upperCornerLat=39.51099400566781"
     this.stops = []
-    console.log("StopsService initialized")
   }
 
   async fetchStops() {
-    console.log("Fetching stops...")
     try {
       const response = await fetch(this.url)
-      console.log("Fetch response status:", response.status)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const xmlText = await response.text()
-      console.log("XML text length:", xmlText.length)
       const parser = new DOMParser()
       const xmlDoc = parser.parseFromString(xmlText, "application/xml")
 
       const stopNodes = xmlDoc.getElementsByTagName("stop")
       const totalStops = stopNodes.length
-      console.log("Total stop nodes found:", totalStops)
 
       this.stops = new Array(totalStops)
 
@@ -43,7 +38,6 @@ export class StopsService {
         if (routesNode) {
           const rtINodes = routesNode.getElementsByTagName("rtI")
           const totalRoutes = rtINodes.length
-          console.log(`Stop ${stopId} has ${totalRoutes} routes`)
           if (totalRoutes) {
             routes = new Array(totalRoutes)
             for (let j = 0; j < totalRoutes; j++) {
@@ -67,33 +61,24 @@ export class StopsService {
           ubica,
           routes,
         }
-
-        if (i % 100 === 0) {
-          console.log(`Processed ${i + 1} stops`)
-        }
       }
-      console.log("All stops processed. Total stops:", this.stops.length)
     } catch (error) {
       console.error("Failed to fetch or parse stops:", error)
     }
   }
 
   getAllStops() {
-    console.log("Getting all stops. Total:", this.stops.length)
     return this.stops
   }
 
   filterByName(query: string) {
-    console.log("Filtering by name:", query)
     if (!query) return this.stops
     const lowerQuery = query.toLowerCase()
     const filtered = this.stops.filter((stop) => stop.name && stop.name.toLowerCase().includes(lowerQuery))
-    console.log("Filtered stops by name. Results:", filtered.length)
     return filtered
   }
 
   filterByRoute(routeQuery: string) {
-    console.log("Filtering by route:", routeQuery)
     if (!routeQuery) return this.stops
     const lowerQuery = routeQuery.toLowerCase()
     const filtered = this.stops.filter((stop) =>
@@ -103,7 +88,6 @@ export class StopsService {
           (route.headSign && route.headSign.toLowerCase().includes(lowerQuery)),
       ),
     )
-    console.log("Filtered stops by route. Results:", filtered.length)
     return filtered
   }
 
@@ -112,4 +96,3 @@ export class StopsService {
     return el && el.textContent ? el.textContent.trim() : ""
   }
 }
-

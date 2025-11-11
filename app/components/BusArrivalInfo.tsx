@@ -23,7 +23,6 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
 
     try {
       const url = `https://geoportal.emtvalencia.es/EMT/mapfunctions/MapUtilsPetitions.php?sec=getSAE&parada=${stopId}&adaptados=false&idioma=va&nocache=${Math.random()}`
-      console.log(`Fetching data for stop ${stopId} from URL: ${url}`)
 
       const response = await fetch(url)
 
@@ -32,10 +31,8 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
       }
 
       const xml = await response.text()
-      console.log(`Received XML for stop ${stopId}:`, xml)
 
       const results = parseXml(xml)
-      console.log(`Parsed results for stop ${stopId}:`, results)
 
       setBuses(results)
     } catch (error) {
@@ -52,7 +49,6 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
 
   function parseXml(xml: string): Bus[] {
     const busBlocks = xml.match(/<bus>[\s\S]*?<\/bus>/g) || []
-    console.log(`Found ${busBlocks.length} bus blocks in XML for stop ${stopId}`)
 
     const results: Bus[] = []
 
@@ -112,4 +108,3 @@ export default function BusArrivalInfo({ stopId }: BusArrivalInfoProps) {
   
   
 }
-

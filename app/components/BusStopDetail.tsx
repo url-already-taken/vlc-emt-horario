@@ -1,4 +1,4 @@
-import type { BusStop } from "../../lib/busStopService"
+import type { BusStop } from "../../lib/busStopTypes"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import BusArrivalInfo from "./BusArrivalInfo"
@@ -38,4 +38,3 @@ export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
     </Sheet>
   )
 }
-

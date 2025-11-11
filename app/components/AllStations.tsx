@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { filterStopsByName, filterStopsByRoute, type BusStop } from "../../lib/busStopService"
+import { filterStopsByName, filterStopsByRoute } from "../../lib/busStopService"
 import { useBusStops } from "../../lib/BusStopContext"
+import type { BusStop } from "../../lib/busStopTypes"
 import { Input } from "@/components/ui/input"
 
 export default function AllStations() {
@@ -23,7 +24,8 @@ export default function AllStations() {
   }, [filteredStops, nameFilter, routeFilter])
 
   if (loading) return <div>Loading stations...</div>
-  if (error) return <div>Error: {error}</div>
+  if (error) return <div>Error: {error}</div>; // Display the error message
+  if (!filteredStops || filteredStops.length === 0) return <div>No stations found.</div>; 
 
   return (
     <div className="space-y-4">
@@ -58,4 +60,3 @@ export default function AllStations() {
     </div>
   )
 }
-
