@@ -30,7 +30,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
       const response = await fetch(url)
 
       if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status}`)
+        throw new Error(`Error HTTP: ${response.status}`)
       }
 
       const xml = await response.text()
@@ -40,7 +40,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
       setBuses(results)
     } catch (error) {
       console.error(`Error fetching data for stop ${stopId}:`, error)
-      setError(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
+      setError(`Error: ${error instanceof Error ? error.message : "Error desconocido"}`)
     } finally {
       setLoading(false)
     }
@@ -81,12 +81,12 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
     return map
   }, [directions])
 
-  if (loading) return <div>Loading bus arrival information...</div>
+  if (loading) return <div>Cargando llegadas...</div>
   if (error) return <div>{error}</div>
 
   return (
     <div className={variant === "compact" ? "mt-1" : "mt-2"}>
-      {variant === "default" && <h4 className="text-sm font-semibold mb-1">Next Buses:</h4>}
+      {variant === "default" && <h4 className="text-sm font-semibold mb-1">Próximos autobuses:</h4>}
       {buses.length > 0 ? (
         <ul className={variant === "compact" ? "space-y-0.5" : "space-y-1"}>
           {buses.slice(0, variant === "compact" ? 2 : buses.length).map((bus, index) => {
@@ -103,7 +103,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
                     </span>
                     <div className="min-w-0">
                       <div className="font-medium text-gray-800 truncate">
-                        {direction?.headSign?.split(" - ")[1] ?? direction?.headSign ?? "—"}
+                        {direction?.headSign ?? "—"}
                       </div>
                     </div>
                   </div>
@@ -121,11 +121,11 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
           })}
         </ul>
       ) : (
-        <p className="text-sm text-gray-500">No buses found for this stop</p>
+        <p className="text-sm text-gray-500">Sin autobuses para esta parada</p>
       )}
       {variant === "default" && (
         <Button onClick={fetchData} className="mt-2 text-xs py-1 px-2">
-          Refresh
+          Actualizar
         </Button>
       )}
     </div>

@@ -23,37 +23,37 @@ export default function AllStations() {
     setDisplayedStops(result)
   }, [filteredStops, nameFilter, routeFilter])
 
-  if (loading) return <div>Loading stations...</div>
-  if (error) return <div>Error: {error}</div>; // Display the error message
-  if (!filteredStops || filteredStops.length === 0) return <div>No stations found.</div>; 
+  if (loading) return <div>Cargando listado de paradas...</div>
+  if (error) return <div>Error: {error}</div>
+  if (!filteredStops || filteredStops.length === 0) return <div>No se encontraron paradas.</div>
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">All Bus Stations</h2>
+      <h2 className="text-2xl font-bold">Todas las paradas</h2>
       <div className="flex gap-2 flex-wrap">
         <Input
           type="text"
-          placeholder="Filter by name"
+          placeholder="Filtrar por nombre"
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
           className="flex-grow"
         />
         <Input
           type="text"
-          placeholder="Filter by route"
+          placeholder="Filtrar por línea"
           value={routeFilter}
           onChange={(e) => setRouteFilter(e.target.value)}
           className="flex-grow"
         />
       </div>
-      <div>Total stations: {displayedStops.length}</div>
+      <div>Total de paradas: {displayedStops.length}</div>
       <ul className="space-y-2">
         {displayedStops.map((stop) => (
           <li key={stop.stopId} className="border rounded p-2">
             <h3 className="font-semibold">{stop.name}</h3>
             <p className="text-sm text-gray-600">ID: {stop.stopId}</p>
-            <p className="text-sm text-gray-600">Location: {stop.ubica}</p>
-            <p className="text-sm text-gray-600">Routes: {stop.routes.map((route) => route.SN).join(", ")}</p>
+            <p className="text-sm text-gray-600">Ubicación: {stop.ubica}</p>
+            <p className="text-sm text-gray-600">Líneas: {stop.routes.map((route) => route.SN).join(", ")}</p>
           </li>
         ))}
       </ul>

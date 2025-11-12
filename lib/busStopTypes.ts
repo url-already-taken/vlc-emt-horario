@@ -58,7 +58,7 @@ export interface RouteDirectionInfo {
   bearing: number
   compassLabel: string
   arrow: string
-  relationToCenter: "к центру" | "от центра" | "вдоль"
+  relationToCenter: "hacia el centro" | "alejándose" | "paralelo"
 }
 
 export type StopDirectionMap = Record<string, RouteDirectionInfo[]>

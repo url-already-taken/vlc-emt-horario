@@ -9,12 +9,11 @@ export default function SortToggle({ sortBy, onSortChange }: SortToggleProps) {
   return (
     <div className="flex gap-2 mb-4">
       <Button onClick={() => onSortChange("nearest")} variant={sortBy === "nearest" ? "default" : "outline"}>
-        Nearest
+        Más cercanas
       </Button>
       <Button onClick={() => onSortChange("soonest")} variant={sortBy === "soonest" ? "default" : "outline"}>
-        Soonest
+        Menor espera
       </Button>
     </div>
   )
 }
-

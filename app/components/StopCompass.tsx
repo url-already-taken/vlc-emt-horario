@@ -24,14 +24,14 @@ export default function StopCompass({ isActive, onToggle }: StopCompassProps) {
             setPermissionGranted(true)
             onToggle(true)
           } else {
-            alert("Для работы компаса необходимо разрешение на доступ к датчикам")
+            alert("Necesitamos acceso a los sensores para activar la brújula")
           }
         } else {
           setPermissionGranted(true)
           onToggle(true)
         }
       } catch (error) {
-        console.error("Ошибка при запросе разрешения:", error)
+        console.error("Error al solicitar permiso de orientación:", error)
       }
     } else {
       onToggle(!isActive)

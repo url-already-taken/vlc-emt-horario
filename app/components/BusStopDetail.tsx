@@ -14,13 +14,13 @@ export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
       <SheetContent>
         <SheetHeader>
           <SheetTitle>{stop.name}</SheetTitle>
-          <SheetDescription>Bus lines and arrival times</SheetDescription>
+          <SheetDescription>Líneas y horarios previstos</SheetDescription>
         </SheetHeader>
         <div className="mt-4 space-y-2">
-          <p>Stop ID: {stop.stopId}</p>
-          <p>Location: {stop.ubica}</p>
+          <p>ID de parada: {stop.stopId}</p>
+          <p>Ubicación: {stop.ubica}</p>
           <div>
-            <h3 className="font-semibold">Routes:</h3>
+            <h3 className="font-semibold">Líneas:</h3>
             <ul className="list-disc list-inside">
               {stop.routes.map((route) => (
                 <li key={route.id_linea}>
@@ -32,7 +32,7 @@ export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
           <BusArrivalInfo stopId={stop.stopId} />
         </div>
         <Button onClick={onClose} className="mt-4 w-full">
-          Close
+          Cerrar
         </Button>
       </SheetContent>
     </Sheet>

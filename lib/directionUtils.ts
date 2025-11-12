@@ -6,14 +6,14 @@ const MAX_DIRECTION_DISTANCE_M = 600
 const CITY_CENTER = { lat: 39.4699, lon: -0.3763 }
 
 const COMPASS_SEGMENTS = [
-  { label: "С", arrow: "↑", start: 337.5, end: 22.5 },
-  { label: "СВ", arrow: "↗", start: 22.5, end: 67.5 },
-  { label: "В", arrow: "→", start: 67.5, end: 112.5 },
-  { label: "ЮВ", arrow: "↘", start: 112.5, end: 157.5 },
-  { label: "Ю", arrow: "↓", start: 157.5, end: 202.5 },
-  { label: "ЮЗ", arrow: "↙", start: 202.5, end: 247.5 },
-  { label: "З", arrow: "←", start: 247.5, end: 292.5 },
-  { label: "СЗ", arrow: "↖", start: 292.5, end: 337.5 },
+  { label: "N", arrow: "↑", start: 337.5, end: 22.5 },
+  { label: "NE", arrow: "↗", start: 22.5, end: 67.5 },
+  { label: "E", arrow: "→", start: 67.5, end: 112.5 },
+  { label: "SE", arrow: "↘", start: 112.5, end: 157.5 },
+  { label: "S", arrow: "↓", start: 157.5, end: 202.5 },
+  { label: "SO", arrow: "↙", start: 202.5, end: 247.5 },
+  { label: "O", arrow: "←", start: 247.5, end: 292.5 },
+  { label: "NO", arrow: "↖", start: 292.5, end: 337.5 },
 ]
 
 interface EnrichedRoute {
@@ -109,12 +109,12 @@ function bearingToCompass(bearing: number) {
   return COMPASS_SEGMENTS[0]
 }
 
-function relationToCenter(stop: BusStop, bearing: number): "к центру" | "от центра" | "вдоль" {
+function relationToCenter(stop: BusStop, bearing: number): "hacia el centro" | "alejándose" | "paralelo" {
   const toCenter = normalizeBearing(getBearing(stop.lat, stop.lon, CITY_CENTER.lat, CITY_CENTER.lon))
   const diff = angularDifference(bearing, toCenter)
-  if (diff <= 45) return "к центру"
-  if (diff >= 135) return "от центра"
-  return "вдоль"
+  if (diff <= 45) return "hacia el centro"
+  if (diff >= 135) return "alejándose"
+  return "paralelo"
 }
 
 function angularDifference(a: number, b: number): number {

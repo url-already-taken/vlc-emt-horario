@@ -60,7 +60,7 @@ export default function BusStopItem({
           <div>
             <div className="font-semibold flex items-center gap-2 text-sm">
               <span>{stop.name}</span>
-              <span className="text-yellow-500" aria-label="Избранная остановка">
+              <span className="text-yellow-500" aria-label="Parada favorita">
                 ★
               </span>
             </div>
@@ -85,7 +85,7 @@ export default function BusStopItem({
               variant="outline"
               size="sm"
               className="h-8 px-2 text-xs"
-              aria-label="Убрать из избранного"
+              aria-label="Eliminar de favoritos"
             >
               ✕
             </Button>
@@ -100,14 +100,14 @@ export default function BusStopItem({
       <div className="flex justify-between items-center mb-2">
         <span className="font-semibold flex items-center space-x-2">
           <span>{stop.name}</span>
-          {isFavorite && <span className="text-yellow-500" aria-label="Избранная остановка">★</span>}
+          {isFavorite && <span className="text-yellow-500" aria-label="Parada favorita">★</span>}
         </span>
         <Button
           onClick={() => onToggleFavorite(stop.stopId)}
           variant={isFavorite ? "default" : "outline"}
           size="sm"
         >
-          {isFavorite ? "★ В избранном" : "☆ В избранное"}
+          {isFavorite ? "★ En favoritos" : "☆ Añadir a favoritos"}
         </Button>
       </div>
       <div className="text-sm text-gray-600 mb-2">
@@ -118,7 +118,7 @@ export default function BusStopItem({
               stop.lat,
               stop.lon,
             ).toFixed(2)} km`
-          : `Proxima bus: TBD`}
+          : `Próximo bus: por confirmar`}
       </div>
       {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} />}
       

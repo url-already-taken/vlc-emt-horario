@@ -66,7 +66,7 @@ function HomeContent() {
       {showAllStations ? (
         <> 
           <Button onClick={() => setShowAllStations(false)} className="mb-4">
-            Back to Nearby Stops
+            Volver a paradas cercanas
           </Button>
           <AllStations />
         </>
@@ -76,13 +76,13 @@ function HomeContent() {
           <div className="flex justify-between items-center mb-4">
             <Select onValueChange={handleDistanceFilterChange}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by distance" />
+                <SelectValue placeholder="Filtrar por distancia" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0.1">100 meters</SelectItem>
-                <SelectItem value="0.5">500 meters</SelectItem>
-                <SelectItem value="1">1 kilometer</SelectItem>
-                <SelectItem value="Infinity">All stations</SelectItem>
+                <SelectItem value="0.1">100 metros</SelectItem>
+                <SelectItem value="0.5">500 metros</SelectItem>
+                <SelectItem value="1">1 kilómetro</SelectItem>
+                <SelectItem value="Infinity">Todas las paradas</SelectItem>
               </SelectContent>
             </Select>
             <StopCompass 
@@ -90,11 +90,11 @@ function HomeContent() {
               onToggle={setShowCompassOverlay} 
             />
               <Button onClick={() => setShowAllStations(true)} className="mb-4">
-              TODO
+              Ver todas
             </Button>
           </div>
           
-          {loading && <div className="mt-4">Loading stops...</div>}
+          {loading && <div className="mt-4">Cargando paradas...</div>}
           {error && !loading && <div className="mt-4 text-red-600">{error}</div>}
           {!loading && !error && (
             <>

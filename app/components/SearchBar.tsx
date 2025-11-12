@@ -19,16 +19,15 @@ export default function SearchBar({ onSearch, onUseMyLocation }: SearchBarProps)
     <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
       <Input
         type="text"
-        placeholder="Enter location..."
+        placeholder="Busca por calle o código..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="flex-grow"
       />
-      <Button type="submit">Search</Button>
+      <Button type="submit">Buscar</Button>
       <Button type="button" onClick={onUseMyLocation} variant="outline">
-        Use My Location
+        Usar mi ubicación
       </Button>
     </form>
   )
 }
-

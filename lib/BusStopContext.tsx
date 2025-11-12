@@ -40,7 +40,7 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
         const fetchedStops = await fetchBusStops(apiUrl)
         setStops(fetchedStops)
       } catch (err) {
-        setError("Failed to load bus stops")
+        setError("No se pudieron cargar las paradas")
         console.error(err)
       } finally {
         setLoading(false)

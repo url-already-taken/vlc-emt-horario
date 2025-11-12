@@ -51,7 +51,7 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
     })
   }, [filteredStops, sortBy, userLocation])
 
-  if (loading) return <div>Loading stations...</div>
+  if (loading) return <div>Cargando paradas...</div>
   if (error) return <div>Error: {error}</div>
 
   const favoriteList = sortedStops.filter((stop) => favoriteStops[stop.stopId])
@@ -61,8 +61,8 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
     <div className="space-y-6">
       {favoriteList.length > 0 && (
         <section>
-          <h3 className="text-sm font-semibold text-gray-600 mb-2">Избранные остановки</h3>
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
+          <h3 className="text-sm font-semibold text-gray-600 mb-2">Paradas favoritas</h3>
+          <ul className="space-y-4">
             {favoriteList.map((stop) => (
               <BusStopItem
                 key={`fav-${stop.stopId}`}
@@ -95,7 +95,7 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
               />
             ))
           ) : (
-            favoriteList.length === 0 && <li>No bus stops available</li>
+            favoriteList.length === 0 && <li>No hay paradas disponibles</li>
           )}
         </ul>
       </section>
