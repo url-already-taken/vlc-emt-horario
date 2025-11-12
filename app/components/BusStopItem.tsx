@@ -79,9 +79,7 @@ export default function BusStopItem({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => onSelectStop(stop)} variant="ghost" size="sm">
-              Подробнее
-            </Button>
+            
             <Button
               onClick={() => onToggleFavorite(stop.stopId)}
               variant="outline"

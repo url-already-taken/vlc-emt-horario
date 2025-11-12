@@ -103,7 +103,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
                     </span>
                     <div className="min-w-0">
                       <div className="font-medium text-gray-800 truncate">
-                        {direction?.headSign ?? "—"}
+                        {direction?.headSign?.split(" - ")[1] ?? direction?.headSign ?? "—"}
                       </div>
                     </div>
                   </div>
