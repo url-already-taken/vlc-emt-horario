@@ -74,16 +74,6 @@ export default function BusStopItem({
                   ).toFixed(2)} km`
                 : stop.ubica}
             </div>
-            {primaryDirection && (
-              <div className="mt-1 text-xs text-gray-800 flex flex-wrap items-center gap-2">
-                <span className="font-semibold">
-                  [{primaryDirection.lineShortName}] {primaryDirection.headSign}
-                </span>
-                <span>{primaryDirection.arrow}</span>
-                <span className="text-gray-500">{primaryDirection.compassLabel}</span>
-                <span className="text-gray-500">{primaryDirection.relationToCenter}</span>
-              </div>
-            )}
             {isVisible && (
               <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="compact" />
             )}
