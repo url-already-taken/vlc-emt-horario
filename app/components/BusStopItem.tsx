@@ -12,6 +12,7 @@ interface BusStopItemProps {
   isFavorite: boolean
   onToggleFavorite: (stopId: string) => void
   directions?: RouteDirectionInfo[]
+  compact?: boolean
 }
 
 export default function BusStopItem({
@@ -22,6 +23,7 @@ export default function BusStopItem({
   isFavorite,
   onToggleFavorite,
   directions = [],
+  compact = false,
 }: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
   const ref = useRef<HTMLLIElement>(null)
@@ -50,6 +52,55 @@ export default function BusStopItem({
     }
   }, [])
 
+  if (compact) {
+    const primaryDirection = directions[0]
+    return (
+      <li ref={ref} className="border rounded p-3 bg-amber-50/50">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="font-semibold flex items-center gap-2 text-sm">
+              <span>{stop.name}</span>
+              <span className="text-yellow-500" aria-label="Избранная остановка">
+                ★
+              </span>
+            </div>
+            <div className="text-xs text-gray-600">
+              {sortBy === "nearest" && userLocation
+                ? `~${calculateDistance(
+                    userLocation.latitude,
+                    userLocation.longitude,
+                    stop.lat,
+                    stop.lon,
+                  ).toFixed(2)} km`
+                : stop.ubica}
+            </div>
+            {primaryDirection && (
+              <div className="mt-1 text-xs text-gray-800 flex flex-wrap items-center gap-2">
+                <span className="font-semibold">
+                  [{primaryDirection.lineShortName}] {primaryDirection.headSign}
+                </span>
+                <span>{primaryDirection.arrow}</span>
+                <span className="text-gray-500">{primaryDirection.compassLabel}</span>
+                <span className="text-gray-500">{primaryDirection.relationToCenter}</span>
+              </div>
+            )}
+            {isVisible && (
+              <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="compact" />
+            )}
+          </div>
+          <div className="flex flex-col gap-1 items-end">
+            <Button onClick={() => onSelectStop(stop)} variant="ghost" size="sm">
+              Подробнее
+            </Button>
+            <Button onClick={() => onToggleFavorite(stop.stopId)} variant="outline" size="sm">
+              Убрать ★
+            </Button>
+          </div>
+        </div>
+      </li>
+    )
+  }
+
   return (
     <li ref={ref} className="border rounded p-4">
       <div className="flex justify-between items-center mb-2">
@@ -75,30 +126,7 @@ export default function BusStopItem({
             ).toFixed(2)} km`
           : `Proxima bus: TBD`}
       </div>
-      {directions.length > 0 && (
-        <div className="space-y-2 text-sm mb-3">
-          {directions.slice(0, 4).map((direction) => (
-            <div
-              key={`${direction.lineId}-${direction.headSign}`}
-              className="flex items-center justify-between rounded border px-2 py-1"
-            >
-              <div className="mr-3">
-                <div className="font-semibold">
-                  [{direction.lineShortName}] {direction.headSign}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {direction.relationToCenter} · {direction.distanceMeters} м до {direction.neighborName}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-lg leading-none">{direction.arrow}</div>
-                <div className="text-xs text-gray-500">{direction.compassLabel}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {isVisible && <BusArrivalInfo stopId={stop.stopId} />}
+      {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} />}
       <div className="flex justify-end mt-2">
         <Button onClick={() => onSelectStop(stop)} variant="ghost">
           Ver Details
