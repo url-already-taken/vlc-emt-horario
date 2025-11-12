@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import BusArrivalInfo from "./BusArrivalInfo"
-import type { BusStop } from "../../lib/busStopTypes"
+import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
 
 interface BusStopItemProps {
   stop: BusStop
@@ -11,6 +11,7 @@ interface BusStopItemProps {
   userLocation: { latitude: number; longitude: number } | null
   isFavorite: boolean
   onToggleFavorite: (stopId: string) => void
+  directions?: RouteDirectionInfo[]
 }
 
 export default function BusStopItem({
@@ -20,6 +21,7 @@ export default function BusStopItem({
   userLocation,
   isFavorite,
   onToggleFavorite,
+  directions = [],
 }: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
   const ref = useRef<HTMLLIElement>(null)
@@ -73,6 +75,29 @@ export default function BusStopItem({
             ).toFixed(2)} km`
           : `Proxima bus: TBD`}
       </div>
+      {directions.length > 0 && (
+        <div className="space-y-2 text-sm mb-3">
+          {directions.slice(0, 4).map((direction) => (
+            <div
+              key={`${direction.lineId}-${direction.headSign}`}
+              className="flex items-center justify-between rounded border px-2 py-1"
+            >
+              <div className="mr-3">
+                <div className="font-semibold">
+                  [{direction.lineShortName}] {direction.headSign}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {direction.relationToCenter} · {direction.distanceMeters} м до {direction.neighborName}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg leading-none">{direction.arrow}</div>
+                <div className="text-xs text-gray-500">{direction.compassLabel}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {isVisible && <BusArrivalInfo stopId={stop.stopId} />}
       <div className="flex justify-end mt-2">
         <Button onClick={() => onSelectStop(stop)} variant="ghost">

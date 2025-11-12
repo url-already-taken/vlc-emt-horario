@@ -11,7 +11,7 @@ interface BusStopListProps {
 }
 
 export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) {
-  const { filteredStops, loading, error, userLocation } = useBusStops()
+  const { filteredStops, loading, error, userLocation, routeDirections } = useBusStops()
   const [favoriteStops, setFavoriteStops] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -66,6 +66,7 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
             userLocation={userLocation}
             isFavorite={Boolean(favoriteStops[stop.stopId])}
             onToggleFavorite={handleToggleFavorite}
+            directions={routeDirections[stop.stopId]}
           />
         ))
       ) : (

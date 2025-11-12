@@ -3,7 +3,8 @@
 import { createContext, useContext, useState, useEffect, useMemo } from "react"
 import { fetchBusStops } from "./busStopService"
 import { distanceKm } from "./geoUtils"
-import { BusStop } from "./busStopTypes"
+import { BusStop, StopDirectionMap } from "./busStopTypes"
+import { computeRouteDirections } from "./directionUtils"
 
 interface Location {
   latitude: number
@@ -12,6 +13,7 @@ interface Location {
 
 interface BusStopContextType {
   stops: BusStop[]
+  routeDirections: StopDirectionMap
   loading: boolean
   error: string | null
   userLocation: Location | null
@@ -56,6 +58,8 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
     })
   }, [stops, userLocation, distanceFilter])
 
+  const routeDirections = useMemo(() => computeRouteDirections(stops), [stops])
+
   // ближайшие 5
   const nearestStops = useMemo(() => {
     if (!userLocation) return []
@@ -73,6 +77,7 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
     <BusStopContext.Provider
       value={{
         stops,
+        routeDirections,
         loading,
         error,
         userLocation,
