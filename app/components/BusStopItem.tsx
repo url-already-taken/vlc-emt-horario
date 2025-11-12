@@ -78,12 +78,18 @@ export default function BusStopItem({
               <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="compact" />
             )}
           </div>
-          <div className="flex flex-col gap-1 items-end">
+          <div className="flex items-center gap-2">
             <Button onClick={() => onSelectStop(stop)} variant="ghost" size="sm">
               Подробнее
             </Button>
-            <Button onClick={() => onToggleFavorite(stop.stopId)} variant="outline" size="sm">
-              Убрать ★
+            <Button
+              onClick={() => onToggleFavorite(stop.stopId)}
+              variant="outline"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              aria-label="Убрать из избранного"
+            >
+              ✕
             </Button>
           </div>
         </div>
@@ -117,11 +123,7 @@ export default function BusStopItem({
           : `Proxima bus: TBD`}
       </div>
       {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} />}
-      <div className="flex justify-end mt-2">
-        <Button onClick={() => onSelectStop(stop)} variant="ghost">
-          Ver Details
-        </Button>
-      </div>
+      
     </li>
   )
 }

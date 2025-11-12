@@ -58,36 +58,47 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
   const regularList = sortedStops.filter((stop) => !favoriteStops[stop.stopId])
 
   return (
-    <ul className="space-y-4">
-      {favoriteList.map((stop) => (
-        <BusStopItem
-          key={`fav-${stop.stopId}`}
-          stop={stop}
-          sortBy={sortBy}
-          onSelectStop={onSelectStop}
-          userLocation={userLocation}
-          isFavorite
-          compact
-          onToggleFavorite={handleToggleFavorite}
-          directions={routeDirections[stop.stopId]}
-        />
-      ))}
-      {regularList.length > 0 ? (
-        regularList.map((stop) => (
-          <BusStopItem
-            key={stop.stopId}
-            stop={stop}
-            sortBy={sortBy}
-            onSelectStop={onSelectStop}
-            userLocation={userLocation}
-            isFavorite={Boolean(favoriteStops[stop.stopId])}
-            onToggleFavorite={handleToggleFavorite}
-            directions={routeDirections[stop.stopId]}
-          />
-        ))
-      ) : (
-        favoriteList.length === 0 && <li>No bus stops available</li>
+    <div className="space-y-6">
+      {favoriteList.length > 0 && (
+        <section>
+          <h3 className="text-sm font-semibold text-gray-600 mb-2">Избранные остановки</h3>
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {favoriteList.map((stop) => (
+              <BusStopItem
+                key={`fav-${stop.stopId}`}
+                stop={stop}
+                sortBy={sortBy}
+                onSelectStop={onSelectStop}
+                userLocation={userLocation}
+                isFavorite
+                compact
+                onToggleFavorite={handleToggleFavorite}
+                directions={routeDirections[stop.stopId]}
+              />
+            ))}
+          </ul>
+        </section>
       )}
-    </ul>
+      <section>
+        <ul className="space-y-4">
+          {regularList.length > 0 ? (
+            regularList.map((stop) => (
+              <BusStopItem
+                key={stop.stopId}
+                stop={stop}
+                sortBy={sortBy}
+                onSelectStop={onSelectStop}
+                userLocation={userLocation}
+                isFavorite={Boolean(favoriteStops[stop.stopId])}
+                onToggleFavorite={handleToggleFavorite}
+                directions={routeDirections[stop.stopId]}
+              />
+            ))
+          ) : (
+            favoriteList.length === 0 && <li>No bus stops available</li>
+          )}
+        </ul>
+      </section>
+    </div>
   )
 }
