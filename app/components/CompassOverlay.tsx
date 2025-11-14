@@ -10,8 +10,9 @@ const ROUTE_LINE_WIDTH = 1.5
 const ROUTE_DASH_PATTERN: number[] = [4, 4]
 const BACKTRACK_RATIO = 0.4
 const BACKTRACK_MAX_PX = 120
-const ARROW_LENGTH_PX = 14
-const ARROW_WIDTH_PX = 8
+const ROUTE_BADGE_RADIUS = 12
+const ROUTE_BADGE_FILL = "#ffffff"
+const ROUTE_BADGE_TEXT = "#1d4ed8"
 
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
@@ -218,50 +219,41 @@ export default function CompassOverlay() {
       ctx.fillStyle = ROUTE_LINE_COLOR
       ctx.fill()
 
-      drawArrowHead(ctx, {
-        tipX: arrowTip.x,
-        tipY: arrowTip.y,
-        unitX,
-        unitY,
-        forwardLength,
+      drawRouteBadge(ctx, {
+        centerX: arrowTip.x,
+        centerY: arrowTip.y,
+        label: direction.lineShortName || direction.lineId,
       })
     })
   }
 
-  function drawArrowHead(
+  function drawRouteBadge(
     ctx: CanvasRenderingContext2D,
     {
-      tipX,
-      tipY,
-      unitX,
-      unitY,
-      forwardLength,
+      centerX,
+      centerY,
+      label,
     }: {
-      tipX: number
-      tipY: number
-      unitX: number
-      unitY: number
-      forwardLength: number
+      centerX: number
+      centerY: number
+      label: string
     },
   ) {
-    const length = Math.min(ARROW_LENGTH_PX, forwardLength * 0.5)
-    const width = Math.min(ARROW_WIDTH_PX, forwardLength * 0.35)
-    const baseX = tipX - unitX * length
-    const baseY = tipY - unitY * length
-    const perpX = -unitY
-    const perpY = unitX
-    const leftX = baseX + perpX * (width / 2)
-    const leftY = baseY + perpY * (width / 2)
-    const rightX = baseX - perpX * (width / 2)
-    const rightY = baseY - perpY * (width / 2)
+    const text = label?.slice(0, 3) || "?"
 
     ctx.beginPath()
-    ctx.moveTo(tipX, tipY)
-    ctx.lineTo(leftX, leftY)
-    ctx.lineTo(rightX, rightY)
-    ctx.closePath()
-    ctx.fillStyle = ROUTE_LINE_COLOR
+    ctx.arc(centerX, centerY, ROUTE_BADGE_RADIUS, 0, 2 * Math.PI)
+    ctx.fillStyle = ROUTE_BADGE_FILL
     ctx.fill()
+    ctx.lineWidth = 1.5
+    ctx.strokeStyle = ROUTE_LINE_COLOR
+    ctx.stroke()
+
+    ctx.font = "10px Inter, system-ui, sans-serif"
+    ctx.fillStyle = ROUTE_BADGE_TEXT
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+    ctx.fillText(text, centerX, centerY)
   }
 
   return (
