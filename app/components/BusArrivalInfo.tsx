@@ -103,7 +103,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
                     </span>
                     <div className="min-w-0">
                       <div className="font-medium text-gray-800 truncate">
-                        {direction?.headSign ?? "—"}
+                        {formatHeadsign(direction?.headSign) ?? "—"}
                       </div>
                     </div>
                   </div>
@@ -130,4 +130,12 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
       )}
     </div>
   )
+}
+
+function formatHeadsign(headsign?: string): string | undefined {
+  if (!headsign) return headsign
+  if (headsign.includes(" - ")) {
+    return headsign.split(" - ")[1]
+  }
+  return headsign
 }
