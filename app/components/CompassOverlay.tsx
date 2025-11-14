@@ -3,9 +3,18 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useBusStops } from "../../lib/BusStopContext"
 import { deg2rad, distanceKm, getBearing } from "../../lib/geoUtils"
+import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
+
+const ROUTE_LINE_COLOR = "rgba(59, 130, 246, 0.65)"
+const ROUTE_LINE_WIDTH = 1.5
+const ROUTE_DASH_PATTERN: number[] = [4, 4]
+const BACKTRACK_RATIO = 0.4
+const BACKTRACK_MAX_PX = 120
+const ARROW_LENGTH_PX = 14
+const ARROW_WIDTH_PX = 8
 
 export default function CompassOverlay() {
-  const { nearestStops, userLocation } = useBusStops()
+  const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [heading, setHeading] = useState(0)
 
@@ -50,7 +59,7 @@ export default function CompassOverlay() {
 
   useEffect(() => {
     drawCanvas()
-  }, [heading, nearestStops, userLocation])
+  }, [heading, nearestStops, userLocation, routeDirections, stops])
 
   function drawCanvas() {
     const canvas = canvasRef.current
@@ -72,44 +81,62 @@ export default function CompassOverlay() {
     ctx.fillStyle = "blue"
     ctx.fill()
 
-    const scalePxPerKm = 1000; // Увеличиваем масштаб для лучшей видимости
-    const userLat = userLocation.latitude;
-    const userLon = userLocation.longitude;
+    const scalePxPerKm = 1000 // Увеличиваем масштаб для лучшей видимости
+    const userLat = userLocation.latitude
+    const userLon = userLocation.longitude
+    const stopLookup = new Map<string, BusStop>(stops.map((stop) => [stop.stopId, stop]))
+
+    const projectPoint = (lat: number, lon: number) => {
+      const distKm = distanceKm(userLat, userLon, lat, lon)
+      const bearing = getBearing(userLat, userLon, lat, lon)
+      const adjustedBearing = (bearing - heading + 360) % 360
+      const angleRad = deg2rad(adjustedBearing)
+      const r = distKm * scalePxPerKm
+      const x = r * Math.sin(angleRad)
+      const y = -r * Math.cos(angleRad)
+      return { x, y }
+    }
 
     nearestStops.forEach((stop) => {
       // Проверяем, что координаты остановки - числа
-      const stopLat = Number(stop.lat);
-      const stopLon = Number(stop.lon);
+      const stopLat = Number(stop.lat)
+      const stopLon = Number(stop.lon)
       
       // Вычисляем расстояние и азимут
-      const distKm = distanceKm(userLat, userLon, stopLat, stopLon);
-      const bearing = getBearing(userLat, userLon, stopLat, stopLon);
-      
-      // Корректируем азимут с учетом текущего направления устройства
-      const adjustedBearing = (bearing - heading + 360) % 360;
-      const angleRad = deg2rad(adjustedBearing);
-
-      // Пересчитываем координаты с учетом масштаба
-      const r = distKm * scalePxPerKm;
-      const x = r * Math.sin(angleRad); // Используем sin для X
-      const y = -r * Math.cos(angleRad); // Используем -cos для Y
+      const { x, y } = projectPoint(stopLat, stopLon)
 
       // Отрисовываем только видимые в текущем масштабе точки
-      if (Math.abs(x) < width/2 && Math.abs(y) < height/2) {
-        ctx.beginPath();
-        ctx.arc(x, y, 8, 0, 2 * Math.PI);
-        ctx.fillStyle = "#ff4757";
-        ctx.fill();
+      if (Math.abs(x) < width / 2 && Math.abs(y) < height / 2) {
+        drawDirectionLines(ctx, {
+          stopX: x,
+          stopY: y,
+          projectPoint,
+          stopLookup,
+          directions: routeDirections?.[stop.stopId] ?? [],
+        })
+
+        ctx.beginPath()
+        ctx.arc(x, y, 8, 0, 2 * Math.PI)
+        ctx.fillStyle = "#ff4757"
+        ctx.fill()
 
         // Добавляем текст с названием остановки
-        ctx.font = "14px Arial";
-        ctx.fillStyle = "black";
-        ctx.textAlign = "center";
-        ctx.fillText(stop.name, x, y - 12);
+        ctx.font = "14px Arial"
+        ctx.fillStyle = "black"
+        ctx.textAlign = "center"
+        ctx.fillText(formatStopName(stop.name), x, y - 12)
       }
-    });
+    })
 
-    ctx.restore();
+    ctx.restore()
+  }
+
+  function formatStopName(name?: string): string {
+    if (!name) return ""
+    if (name.includes(" - ")) {
+      return name.split(" - ")[1]
+    }
+    return name
   }
 
   function handleResize() {
@@ -127,6 +154,115 @@ export default function CompassOverlay() {
       window.removeEventListener("resize", handleResize)
     }
   }, [])
+
+  function drawDirectionLines(
+    ctx: CanvasRenderingContext2D,
+    {
+      directions,
+      stopX,
+      stopY,
+      projectPoint,
+      stopLookup,
+    }: {
+      directions: RouteDirectionInfo[]
+      stopX: number
+      stopY: number
+      projectPoint: (lat: number, lon: number) => { x: number; y: number }
+      stopLookup: Map<string, BusStop>
+    },
+  ) {
+    if (!directions?.length) return
+
+    directions.forEach((direction) => {
+      const neighbor = stopLookup.get(direction.neighborStopId)
+      if (!neighbor) return
+
+      const neighborPoint = projectPoint(neighbor.lat, neighbor.lon)
+      if (!neighborPoint) return
+
+      const forwardVector = {
+        x: neighborPoint.x - stopX,
+        y: neighborPoint.y - stopY,
+      }
+      const forwardLength = Math.hypot(forwardVector.x, forwardVector.y)
+      if (forwardLength === 0) return
+
+      const unitX = forwardVector.x / forwardLength
+      const unitY = forwardVector.y / forwardLength
+      const backtrackLength = Math.min(forwardLength * BACKTRACK_RATIO, BACKTRACK_MAX_PX)
+      const backwardPoint = {
+        x: stopX - unitX * backtrackLength,
+        y: stopY - unitY * backtrackLength,
+      }
+
+      const arrowTipOffset = Math.min(8, forwardLength * 0.2)
+      const arrowTip = {
+        x: neighborPoint.x + unitX * arrowTipOffset,
+        y: neighborPoint.y + unitY * arrowTipOffset,
+      }
+
+      ctx.save()
+      ctx.beginPath()
+      ctx.moveTo(backwardPoint.x, backwardPoint.y)
+      ctx.lineTo(stopX, stopY)
+      ctx.lineTo(arrowTip.x, arrowTip.y)
+      ctx.strokeStyle = ROUTE_LINE_COLOR
+      ctx.lineWidth = ROUTE_LINE_WIDTH
+      ctx.setLineDash(ROUTE_DASH_PATTERN)
+      ctx.stroke()
+      ctx.restore()
+
+      // точка в начале сегмента
+      ctx.beginPath()
+      ctx.arc(backwardPoint.x, backwardPoint.y, 3, 0, 2 * Math.PI)
+      ctx.fillStyle = ROUTE_LINE_COLOR
+      ctx.fill()
+
+      drawArrowHead(ctx, {
+        tipX: arrowTip.x,
+        tipY: arrowTip.y,
+        unitX,
+        unitY,
+        forwardLength,
+      })
+    })
+  }
+
+  function drawArrowHead(
+    ctx: CanvasRenderingContext2D,
+    {
+      tipX,
+      tipY,
+      unitX,
+      unitY,
+      forwardLength,
+    }: {
+      tipX: number
+      tipY: number
+      unitX: number
+      unitY: number
+      forwardLength: number
+    },
+  ) {
+    const length = Math.min(ARROW_LENGTH_PX, forwardLength * 0.5)
+    const width = Math.min(ARROW_WIDTH_PX, forwardLength * 0.35)
+    const baseX = tipX - unitX * length
+    const baseY = tipY - unitY * length
+    const perpX = -unitY
+    const perpY = unitX
+    const leftX = baseX + perpX * (width / 2)
+    const leftY = baseY + perpY * (width / 2)
+    const rightX = baseX - perpX * (width / 2)
+    const rightY = baseY - perpY * (width / 2)
+
+    ctx.beginPath()
+    ctx.moveTo(tipX, tipY)
+    ctx.lineTo(leftX, leftY)
+    ctx.lineTo(rightX, rightY)
+    ctx.closePath()
+    ctx.fillStyle = ROUTE_LINE_COLOR
+    ctx.fill()
+  }
 
   return (
     <canvas
