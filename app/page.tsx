@@ -181,10 +181,14 @@ function HomeContent() {
           {loading && <div className="mt-4">Cargando paradas...</div>}
           {error && !loading && <div className="mt-4 text-red-600">{error}</div>}
           {!loading && !error && (
-            <>
+            <div
+              className={`transition-opacity duration-300 ${
+                showCompassOverlay ? "opacity-20" : "opacity-100"
+              }`}
+            >
               <BusStopList sortBy={sortBy} onSelectStop={setSelectedStop} searchQuery={searchQuery} />
               {selectedStop && <BusStopDetail stop={selectedStop} onClose={() => setSelectedStop(null)} />}
-            </>
+            </div>
           )}
         </>
       )}
