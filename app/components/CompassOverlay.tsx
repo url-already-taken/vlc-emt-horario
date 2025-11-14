@@ -15,6 +15,7 @@ const FORWARD_RATIO = 0.55
 const ROUTE_BADGE_RADIUS = 12
 const ROUTE_BADGE_FILL = "#ffffff"
 const ROUTE_BADGE_TEXT = "#1d4ed8"
+const HEADING_SMOOTHING = 0.25
 
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
@@ -22,41 +23,44 @@ export default function CompassOverlay() {
   const [heading, setHeading] = useState(0)
 
   useEffect(() => {
+    const orientationEvent = getOrientationEventName()
+
     function handleOrientation(event: DeviceOrientationEvent) {
-      let hd = 0
-      if (typeof event.webkitCompassHeading === "number") {
-        hd = event.webkitCompassHeading
-      } else if (typeof event.alpha === "number") {
-        // для браузеров, в которых нет webkitCompassHeading
-        hd = 360 - event.alpha
-      }
-      if (hd < 0) hd += 360
-      setHeading(Math.round(hd))
+      const nextHeading = deriveHeading(event)
+      if (nextHeading == null) return
+      setHeading((prev) => smoothHeading(prev, nextHeading))
+    }
+
+    function subscribe() {
+      window.addEventListener(orientationEvent, handleOrientation as EventListener)
+    }
+
+    function unsubscribe() {
+      window.removeEventListener(orientationEvent, handleOrientation as EventListener)
     }
 
     function requestPermissionIfNeeded() {
       if (
         typeof DeviceOrientationEvent !== "undefined" &&
-        // @ts-ignore
-        typeof DeviceOrientationEvent.requestPermission === "function"
+        typeof (DeviceOrientationEvent as any).requestPermission === "function"
       ) {
-        // @ts-ignore
-        DeviceOrientationEvent.requestPermission()
+        ;(DeviceOrientationEvent as any)
+          .requestPermission()
           .then((perm: PermissionState) => {
             if (perm === "granted") {
-              window.addEventListener("deviceorientation", handleOrientation)
+              subscribe()
             }
           })
           .catch(console.error)
       } else {
-        window.addEventListener("deviceorientation", handleOrientation)
+        subscribe()
       }
     }
 
     requestPermissionIfNeeded()
 
     return () => {
-      window.removeEventListener("deviceorientation", handleOrientation)
+      unsubscribe()
     }
   }, [])
 
@@ -212,12 +216,6 @@ export default function CompassOverlay() {
         y: lineEnd.y + unitY * badgeOffset,
       }
 
-      const arrowTipOffset = Math.min(8, forwardLength * 0.2)
-      const arrowTip = {
-        x: neighborPoint.x + unitX * arrowTipOffset,
-        y: neighborPoint.y + unitY * arrowTipOffset,
-      }
-
       ctx.save()
       ctx.beginPath()
       ctx.moveTo(backwardPoint.x, backwardPoint.y)
@@ -284,4 +282,74 @@ export default function CompassOverlay() {
       }}
     />
   )
+}
+
+function getOrientationEventName(): "deviceorientation" | "deviceorientationabsolute" {
+  if (typeof window !== "undefined" && "ondeviceorientationabsolute" in window) {
+    return "deviceorientationabsolute"
+  }
+  return "deviceorientation"
+}
+
+function deriveHeading(event: DeviceOrientationEvent): number | null {
+  let heading: number | null = null
+
+  if (typeof (event as any).webkitCompassHeading === "number") {
+    heading = (event as any).webkitCompassHeading
+  } else if (
+    typeof event.alpha === "number" &&
+    typeof event.beta === "number" &&
+    typeof event.gamma === "number"
+  ) {
+    heading = calculateCompassHeading(event.alpha, event.beta, event.gamma)
+  } else if (typeof event.alpha === "number") {
+    heading = 360 - event.alpha
+  }
+
+  if (heading == null || Number.isNaN(heading)) return null
+  return normalizeHeading(applyScreenOrientation(heading))
+}
+
+function calculateCompassHeading(alpha: number, beta: number, gamma: number): number {
+  const alphaRad = deg2rad(alpha)
+  const betaRad = deg2rad(beta)
+  const gammaRad = deg2rad(gamma)
+
+  const cA = Math.cos(alphaRad)
+  const sA = Math.sin(alphaRad)
+  const cB = Math.cos(betaRad)
+  const sB = Math.sin(betaRad)
+  const cG = Math.cos(gammaRad)
+  const sG = Math.sin(gammaRad)
+
+  const rA = -cA * sG - sA * sB * cG
+  const rB = -sA * sG + cA * sB * cG
+  let heading = Math.atan2(rA, rB)
+
+  if (heading < 0) {
+    heading += 2 * Math.PI
+  }
+
+  return (heading * 180) / Math.PI
+}
+
+function applyScreenOrientation(heading: number): number {
+  if (typeof window === "undefined") return heading
+  const angle = window.screen?.orientation?.angle ?? (window as any).orientation ?? 0
+  return heading + angle
+}
+
+function normalizeHeading(value: number): number {
+  const normalized = value % 360
+  return normalized < 0 ? normalized + 360 : normalized
+}
+
+function smoothHeading(previous: number, next: number): number {
+  if (!Number.isFinite(previous)) return next
+  const diff = shortestAngleDiff(previous, next)
+  return normalizeHeading(previous + diff * HEADING_SMOOTHING)
+}
+
+function shortestAngleDiff(from: number, to: number): number {
+  return ((to - from + 540) % 360) - 180
 }
