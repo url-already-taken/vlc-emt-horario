@@ -19,6 +19,7 @@ function HomeContent() {
   const [selectedStop, setSelectedStop] = useState<BusStop | null>(null)
   const [showAllStations, setShowAllStations] = useState(false)
   const [showCompassOverlay, setShowCompassOverlay] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
   const { setUserLocation, setDistanceFilter, loading, error } = useBusStops()
@@ -114,13 +115,13 @@ function HomeContent() {
     }
   }, [requestUserLocation])
 
-  const handleSearch = (query: string) => {
-    // Implement search functionality here
-  }
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query)
+  }, [])
 
-  const handleUseMyLocation = () => {
-    requestUserLocation()
-  }
+  const handleQueryChange = useCallback((value: string) => {
+    setSearchQuery(value)
+  }, [])
 
   const handleDistanceFilterChange = (value: string) => {
     setDistanceFilter(Number.parseFloat(value))
@@ -139,12 +140,22 @@ function HomeContent() {
         </>
       ) : (
         <>
-          <SearchBar onSearch={handleSearch} onUseMyLocation={handleUseMyLocation} />
-          {geoPermissionError && <p className="text-sm text-red-600 -mt-2 mb-2">{geoPermissionError}</p>}
+          <SearchBar query={searchQuery} onQueryChange={handleQueryChange} onSearch={handleSearch} />
+          {geoPermissionError && (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-red-600 -mt-2 mb-2">
+              <span>{geoPermissionError}</span>
+              <Button size="sm" variant="outline" onClick={requestUserLocation}>
+                Intentar de nuevo
+              </Button>
+            </div>
+          )}
           {!geoPermissionError && geoPermissionState === "prompt" && (
-            <p className="text-sm text-slate-500 -mt-2 mb-2">
-              Pulsa "Usar mi ubicación" para compartir tu posición.
-            </p>
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 -mt-2 mb-2">
+              <span>Comparte tu ubicación para ordenar las paradas por cercanía.</span>
+              <Button size="sm" variant="ghost" onClick={requestUserLocation}>
+                Solicitar acceso
+              </Button>
+            </div>
           )}
           <div className="flex justify-between items-center mb-4">
             <Select onValueChange={handleDistanceFilterChange}>
@@ -171,7 +182,7 @@ function HomeContent() {
           {error && !loading && <div className="mt-4 text-red-600">{error}</div>}
           {!loading && !error && (
             <>
-              <BusStopList sortBy={sortBy} onSelectStop={setSelectedStop} />
+              <BusStopList sortBy={sortBy} onSelectStop={setSelectedStop} searchQuery={searchQuery} />
               {selectedStop && <BusStopDetail stop={selectedStop} onClose={() => setSelectedStop(null)} />}
             </>
           )}

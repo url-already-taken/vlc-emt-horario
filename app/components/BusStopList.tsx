@@ -8,9 +8,10 @@ import type { BusStop } from "../../lib/busStopTypes"
 interface BusStopListProps {
   sortBy: "nearest" | "soonest"
   onSelectStop: (stop: BusStop) => void
+  searchQuery: string
 }
 
-export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) {
+export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusStopListProps) {
   const { filteredStops, loading, error, userLocation, routeDirections } = useBusStops()
   const [favoriteStops, setFavoriteStops] = useState<Record<string, boolean>>({})
 
@@ -41,21 +42,34 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
     })
   }
 
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+
+  const searchFilteredStops = useMemo(() => {
+    if (!normalizedQuery) return filteredStops
+    return filteredStops.filter((stop) => {
+      const nameMatch = stop.name?.toLowerCase().includes(normalizedQuery)
+      const codeMatch = stop.stopId?.toLowerCase().includes(normalizedQuery)
+      const areaMatch = stop.ubica?.toLowerCase().includes(normalizedQuery)
+      return Boolean(nameMatch || codeMatch || areaMatch)
+    })
+  }, [filteredStops, normalizedQuery])
+
   const sortedStops = useMemo(() => {
-    if (!filteredStops.length) return []
-    if (sortBy !== "nearest" || !userLocation) return filteredStops
-    return [...filteredStops].sort((a, b) => {
+    if (!searchFilteredStops.length) return []
+    if (sortBy !== "nearest" || !userLocation) return searchFilteredStops
+    return [...searchFilteredStops].sort((a, b) => {
       const distanceA = calculateDistance(userLocation.latitude, userLocation.longitude, a.lat, a.lon)
       const distanceB = calculateDistance(userLocation.latitude, userLocation.longitude, b.lat, b.lon)
       return distanceA - distanceB
     })
-  }, [filteredStops, sortBy, userLocation])
+  }, [searchFilteredStops, sortBy, userLocation])
 
   if (loading) return <div>Cargando paradas...</div>
   if (error) return <div>Error: {error}</div>
 
   const favoriteList = sortedStops.filter((stop) => favoriteStops[stop.stopId])
   const regularList = sortedStops.filter((stop) => !favoriteStops[stop.stopId])
+  const noMatches = Boolean(normalizedQuery && favoriteList.length === 0 && regularList.length === 0)
 
   return (
     <div className="space-y-6">
@@ -81,7 +95,7 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
       )}
       <section>
         <ul className="space-y-4">
-          {regularList.length > 0 ? (
+          {regularList.length > 0 &&
             regularList.map((stop) => (
               <BusStopItem
                 key={stop.stopId}
@@ -93,9 +107,14 @@ export default function BusStopList({ sortBy, onSelectStop }: BusStopListProps) 
                 onToggleFavorite={handleToggleFavorite}
                 directions={routeDirections[stop.stopId]}
               />
-            ))
-          ) : (
-            favoriteList.length === 0 && <li>No hay paradas disponibles</li>
+            ))}
+          {noMatches && (
+            <li className="text-sm text-slate-500">
+              No encontramos paradas que coincidan con "{searchQuery}".
+            </li>
+          )}
+          {!noMatches && regularList.length === 0 && favoriteList.length === 0 && (
+            <li>No hay paradas disponibles</li>
           )}
         </ul>
       </section>
