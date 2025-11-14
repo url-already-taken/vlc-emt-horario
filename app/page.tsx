@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import type { BusStop } from "../lib/busStopTypes"
 import SearchBar from "./components/SearchBar"
 import BusStopList from "./components/BusStopList"
@@ -13,6 +13,33 @@ import StopCompass from "./components/StopCompass"
 import CompassOverlay from "./components/CompassOverlay"
 
 const GEO_PERMISSION_STORAGE_KEY = "paradaya:geo-permission-granted"
+const safeLocalStorage = {
+  get(key: string) {
+    if (typeof window === "undefined") return null
+    try {
+      return window.localStorage.getItem(key)
+    } catch (err) {
+      console.warn("No se pudo leer localStorage:", err)
+      return null
+    }
+  },
+  set(key: string, value: string) {
+    if (typeof window === "undefined") return
+    try {
+      window.localStorage.setItem(key, value)
+    } catch (err) {
+      console.warn("No se pudo guardar localmente el permiso:", err)
+    }
+  },
+  remove(key: string) {
+    if (typeof window === "undefined") return
+    try {
+      window.localStorage.removeItem(key)
+    } catch (err) {
+      console.warn("No se pudo borrar el permiso almacenado:", err)
+    }
+  },
+}
 
 function HomeContent() {
   const [sortBy, setSortBy] = useState<"nearest" | "soonest">("nearest")
@@ -22,6 +49,7 @@ function HomeContent() {
   const [searchQuery, setSearchQuery] = useState("")
   const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
+  const hasRequestedInitialGeo = useRef(false)
   const { setUserLocation, setDistanceFilter, loading, error } = useBusStops()
 
   const requestUserLocation = useCallback(() => {
@@ -38,13 +66,13 @@ function HomeContent() {
           longitude: position.coords.longitude,
         })
         setGeoPermissionState("granted")
-        window.localStorage.setItem(GEO_PERMISSION_STORAGE_KEY, "true")
+        safeLocalStorage.set(GEO_PERMISSION_STORAGE_KEY, "true")
       },
       (geoError) => {
         console.error("Error getting user location:", geoError)
         if (geoError.code === geoError.PERMISSION_DENIED) {
           setGeoPermissionState("denied")
-          window.localStorage.removeItem(GEO_PERMISSION_STORAGE_KEY)
+          safeLocalStorage.remove(GEO_PERMISSION_STORAGE_KEY)
           setGeoPermissionError("Activa los permisos de ubicación en el navegador para usar esta función.")
           return
         }
@@ -65,7 +93,13 @@ function HomeContent() {
     }
 
     let permissionStatus: PermissionStatus | null = null
-    const storedGrant = window.localStorage.getItem(GEO_PERMISSION_STORAGE_KEY) === "true"
+    const storedGrant = safeLocalStorage.get(GEO_PERMISSION_STORAGE_KEY) === "true"
+
+    const triggerInitialRequest = () => {
+      if (hasRequestedInitialGeo.current) return
+      hasRequestedInitialGeo.current = true
+      requestUserLocation()
+    }
 
     const handlePermissionChange = () => {
       if (!permissionStatus) return
@@ -75,8 +109,12 @@ function HomeContent() {
         requestUserLocation()
       }
 
+      if (permissionStatus.state === "prompt") {
+        triggerInitialRequest()
+      }
+
       if (permissionStatus.state === "denied") {
-        window.localStorage.removeItem(GEO_PERMISSION_STORAGE_KEY)
+        safeLocalStorage.remove(GEO_PERMISSION_STORAGE_KEY)
       }
     }
 
@@ -88,6 +126,8 @@ function HomeContent() {
 
           if (permissionStatus.state === "granted") {
             requestUserLocation()
+          } else if (permissionStatus.state === "prompt") {
+            triggerInitialRequest()
           }
 
           permissionStatus.addEventListener?.("change", handlePermissionChange)
@@ -103,6 +143,7 @@ function HomeContent() {
         requestUserLocation()
       } else {
         setGeoPermissionState("prompt")
+        triggerInitialRequest()
       }
     }
 

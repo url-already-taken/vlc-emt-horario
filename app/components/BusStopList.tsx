@@ -5,6 +5,28 @@ import { useBusStops } from "../../lib/BusStopContext"
 import { calculateDistance } from "../../lib/geoUtils"
 import type { BusStop } from "../../lib/busStopTypes"
 
+const FAVORITES_STORAGE_KEY = "bus-stop-favorites"
+
+const safeFavoritesStorage = {
+  read() {
+    if (typeof window === "undefined") return null
+    try {
+      return window.localStorage.getItem(FAVORITES_STORAGE_KEY)
+    } catch (err) {
+      console.warn("No se pudo leer favoritos almacenados:", err)
+      return null
+    }
+  },
+  write(value: string) {
+    if (typeof window === "undefined") return
+    try {
+      window.localStorage.setItem(FAVORITES_STORAGE_KEY, value)
+    } catch (err) {
+      console.warn("No se pudo guardar favoritos:", err)
+    }
+  },
+}
+
 interface BusStopListProps {
   sortBy: "nearest" | "soonest"
   onSelectStop: (stop: BusStop) => void
@@ -18,7 +40,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
   useEffect(() => {
     if (typeof window === "undefined") return
     try {
-      const stored = window.localStorage.getItem("bus-stop-favorites")
+      const stored = safeFavoritesStorage.read()
       if (stored) {
         setFavoriteStops(JSON.parse(stored))
       }
@@ -35,9 +57,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
       } else {
         updated[stopId] = true
       }
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("bus-stop-favorites", JSON.stringify(updated))
-      }
+      safeFavoritesStorage.write(JSON.stringify(updated))
       return updated
     })
   }
