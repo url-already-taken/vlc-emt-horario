@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { BusStop } from "../lib/busStopTypes"
 import SearchBar from "./components/SearchBar"
 import BusStopList from "./components/BusStopList"
@@ -12,47 +12,114 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StopCompass from "./components/StopCompass"
 import CompassOverlay from "./components/CompassOverlay"
 
+const GEO_PERMISSION_STORAGE_KEY = "paradaya:geo-permission-granted"
+
 function HomeContent() {
   const [sortBy, setSortBy] = useState<"nearest" | "soonest">("nearest")
   const [selectedStop, setSelectedStop] = useState<BusStop | null>(null)
   const [showAllStations, setShowAllStations] = useState(false)
   const [showCompassOverlay, setShowCompassOverlay] = useState(false)
+  const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
+  const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
   const { setUserLocation, setDistanceFilter, loading, error } = useBusStops()
 
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          })
-        },
-        (error) => {
-          console.error("Error getting user location:", error)
-        },
-      )
+  const requestUserLocation = useCallback(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setGeoPermissionError("Tu navegador no soporta geolocalización.")
+      return
     }
+
+    setGeoPermissionError(null)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+        setGeoPermissionState("granted")
+        window.localStorage.setItem(GEO_PERMISSION_STORAGE_KEY, "true")
+      },
+      (geoError) => {
+        console.error("Error getting user location:", geoError)
+        if (geoError.code === geoError.PERMISSION_DENIED) {
+          setGeoPermissionState("denied")
+          window.localStorage.removeItem(GEO_PERMISSION_STORAGE_KEY)
+          setGeoPermissionError("Activa los permisos de ubicación en el navegador para usar esta función.")
+          return
+        }
+
+        setGeoPermissionError("No pudimos acceder a tu ubicación. Intenta de nuevo en unos segundos.")
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
+      },
+    )
   }, [setUserLocation])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      return
+    }
+
+    let permissionStatus: PermissionStatus | null = null
+    const storedGrant = window.localStorage.getItem(GEO_PERMISSION_STORAGE_KEY) === "true"
+
+    const handlePermissionChange = () => {
+      if (!permissionStatus) return
+      setGeoPermissionState(permissionStatus.state)
+
+      if (permissionStatus.state === "granted") {
+        requestUserLocation()
+      }
+
+      if (permissionStatus.state === "denied") {
+        window.localStorage.removeItem(GEO_PERMISSION_STORAGE_KEY)
+      }
+    }
+
+    const initPermission = async () => {
+      if (navigator.permissions?.query) {
+        try {
+          permissionStatus = await navigator.permissions.query({ name: "geolocation" })
+          setGeoPermissionState(permissionStatus.state)
+
+          if (permissionStatus.state === "granted") {
+            requestUserLocation()
+          }
+
+          permissionStatus.addEventListener?.("change", handlePermissionChange)
+          permissionStatus.onchange = handlePermissionChange
+          return
+        } catch (permError) {
+          console.warn("No se pudo leer el estado de permisos de geolocalización:", permError)
+        }
+      }
+
+      if (storedGrant) {
+        setGeoPermissionState("granted")
+        requestUserLocation()
+      } else {
+        setGeoPermissionState("prompt")
+      }
+    }
+
+    initPermission()
+
+    return () => {
+      if (!permissionStatus) return
+      permissionStatus.removeEventListener?.("change", handlePermissionChange)
+      permissionStatus.onchange = null
+    }
+  }, [requestUserLocation])
 
   const handleSearch = (query: string) => {
     // Implement search functionality here
   }
 
   const handleUseMyLocation = () => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          })
-        },
-        (error) => {
-          console.error("Error getting user location:", error)
-        },
-      )
-    }
+    requestUserLocation()
   }
 
   const handleDistanceFilterChange = (value: string) => {
@@ -73,6 +140,12 @@ function HomeContent() {
       ) : (
         <>
           <SearchBar onSearch={handleSearch} onUseMyLocation={handleUseMyLocation} />
+          {geoPermissionError && <p className="text-sm text-red-600 -mt-2 mb-2">{geoPermissionError}</p>}
+          {!geoPermissionError && geoPermissionState === "prompt" && (
+            <p className="text-sm text-slate-500 -mt-2 mb-2">
+              Pulsa "Usar mi ubicación" para compartir tu posición.
+            </p>
+          )}
           <div className="flex justify-between items-center mb-4">
             <Select onValueChange={handleDistanceFilterChange}>
               <SelectTrigger className="w-[180px]">
