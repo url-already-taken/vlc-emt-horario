@@ -8,8 +8,10 @@ import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
 const ROUTE_LINE_COLOR = "rgba(59, 130, 246, 0.65)"
 const ROUTE_LINE_WIDTH = 1.5
 const ROUTE_DASH_PATTERN: number[] = [4, 4]
-const BACKTRACK_RATIO = 0.4
-const BACKTRACK_MAX_PX = 120
+const BACKTRACK_RATIO = 0.35
+const BACKTRACK_MAX_PX = 90
+const FORWARD_CLAMP_PX = 150
+const FORWARD_RATIO = 0.55
 const ROUTE_BADGE_RADIUS = 12
 const ROUTE_BADGE_FILL = "#ffffff"
 const ROUTE_BADGE_TEXT = "#1d4ed8"
@@ -190,10 +192,24 @@ export default function CompassOverlay() {
 
       const unitX = forwardVector.x / forwardLength
       const unitY = forwardVector.y / forwardLength
-      const backtrackLength = Math.min(forwardLength * BACKTRACK_RATIO, BACKTRACK_MAX_PX)
+      const effectiveForwardLength = Math.min(forwardLength * FORWARD_RATIO, FORWARD_CLAMP_PX)
+      const scaledVector = {
+        x: unitX * effectiveForwardLength,
+        y: unitY * effectiveForwardLength,
+      }
+      const lineEnd = {
+        x: stopX + scaledVector.x,
+        y: stopY + scaledVector.y,
+      }
+      const backtrackLength = Math.min(effectiveForwardLength * BACKTRACK_RATIO, BACKTRACK_MAX_PX)
       const backwardPoint = {
         x: stopX - unitX * backtrackLength,
         y: stopY - unitY * backtrackLength,
+      }
+      const badgeOffset = Math.min(8, effectiveForwardLength * 0.15)
+      const badgePoint = {
+        x: lineEnd.x + unitX * badgeOffset,
+        y: lineEnd.y + unitY * badgeOffset,
       }
 
       const arrowTipOffset = Math.min(8, forwardLength * 0.2)
@@ -206,7 +222,7 @@ export default function CompassOverlay() {
       ctx.beginPath()
       ctx.moveTo(backwardPoint.x, backwardPoint.y)
       ctx.lineTo(stopX, stopY)
-      ctx.lineTo(arrowTip.x, arrowTip.y)
+      ctx.lineTo(lineEnd.x, lineEnd.y)
       ctx.strokeStyle = ROUTE_LINE_COLOR
       ctx.lineWidth = ROUTE_LINE_WIDTH
       ctx.setLineDash(ROUTE_DASH_PATTERN)
@@ -220,8 +236,8 @@ export default function CompassOverlay() {
       ctx.fill()
 
       drawRouteBadge(ctx, {
-        centerX: arrowTip.x,
-        centerY: arrowTip.y,
+        centerX: badgePoint.x,
+        centerY: badgePoint.y,
         label: direction.lineShortName || direction.lineId,
       })
     })
