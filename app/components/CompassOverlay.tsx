@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef } from "react"
 import { useBusStops } from "../../lib/BusStopContext"
 import { deg2rad, distanceKm, getBearing } from "../../lib/geoUtils"
 import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
@@ -20,7 +20,10 @@ const HEADING_SMOOTHING = 0.25
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [heading, setHeading] = useState(0)
+  const headingRef = useRef(0)
+  const rafIdRef = useRef<number | null>(null)
+  const needsDrawRef = useRef(true)
+  const drawCanvasRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     const orientationEvent = getOrientationEventName()
@@ -28,7 +31,8 @@ export default function CompassOverlay() {
     function handleOrientation(event: DeviceOrientationEvent) {
       const nextHeading = deriveHeading(event)
       if (nextHeading == null) return
-      setHeading((prev) => smoothHeading(prev, nextHeading))
+      headingRef.current = smoothHeading(headingRef.current, nextHeading)
+      needsDrawRef.current = true
     }
 
     function subscribe() {
@@ -65,8 +69,27 @@ export default function CompassOverlay() {
   }, [])
 
   useEffect(() => {
-    drawCanvas()
-  }, [heading, nearestStops, userLocation, routeDirections, stops])
+    needsDrawRef.current = true
+  }, [nearestStops, userLocation, routeDirections, stops])
+
+  useEffect(() => {
+    function renderLoop() {
+      if (needsDrawRef.current) {
+        drawCanvasRef.current()
+        needsDrawRef.current = false
+      }
+      rafIdRef.current = window.requestAnimationFrame(renderLoop)
+    }
+
+    rafIdRef.current = window.requestAnimationFrame(renderLoop)
+
+    return () => {
+      if (rafIdRef.current != null) {
+        window.cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+    }
+  }, [])
 
   function drawCanvas() {
     const canvas = canvasRef.current
@@ -84,7 +107,7 @@ export default function CompassOverlay() {
     ctx.save()
     ctx.translate(cssWidth / 2, cssHeight / 2)
     // Разворачиваем canvas так, чтобы "вперёд телефона" всегда было вверху экрана.
-    ctx.rotate(-heading * (Math.PI / 180))
+    ctx.rotate(-headingRef.current * (Math.PI / 180))
 
     // Рисуем "я" в центре
     ctx.beginPath()
@@ -166,7 +189,7 @@ export default function CompassOverlay() {
     canvas.style.height = `${window.innerHeight}px`
     canvas.width = Math.floor(window.innerWidth * dpr)
     canvas.height = Math.floor(window.innerHeight * dpr)
-    drawCanvas()
+    needsDrawRef.current = true
   }
 
   useEffect(() => {
@@ -284,6 +307,8 @@ export default function CompassOverlay() {
     ctx.textBaseline = "middle"
     ctx.fillText(text, centerX, centerY)
   }
+
+  drawCanvasRef.current = drawCanvas
 
   return (
     <canvas
