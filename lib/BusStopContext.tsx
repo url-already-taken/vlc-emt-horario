@@ -5,6 +5,7 @@ import { fetchBusStops } from "./busStopService"
 import { distanceKm } from "./geoUtils"
 import { BusStop, StopDirectionMap } from "./busStopTypes"
 import { computeRouteDirections } from "./directionUtils"
+import { useDeviceHeading } from "./useDeviceHeading"
 
 interface Location {
   latitude: number
@@ -20,7 +21,8 @@ interface BusStopContextType {
   setUserLocation: (location: Location) => void
   filteredStops: BusStop[]
   setDistanceFilter: (distance: number) => void
-  nearestStops: BusStop[]   // <--- добавляем сюда
+  nearestStops: BusStop[]
+  heading: number | null
 }
 
 const BusStopContext = createContext<BusStopContextType | undefined>(undefined)
@@ -31,6 +33,7 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [userLocation, setUserLocation] = useState<Location | null>(null)
   const [distanceFilter, setDistanceFilter] = useState<number>(Number.POSITIVE_INFINITY)
+  const { heading } = useDeviceHeading({ enabled: true })
 
   useEffect(() => {
     const loadStops = async () => {
@@ -84,7 +87,8 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
         setUserLocation,
         filteredStops,
         setDistanceFilter,
-        nearestStops
+        nearestStops,
+        heading,
       }}
     >
       {children}

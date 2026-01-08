@@ -34,7 +34,7 @@ interface BusStopListProps {
 }
 
 export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusStopListProps) {
-  const { filteredStops, loading, error, userLocation, routeDirections } = useBusStops()
+  const { filteredStops, loading, error, userLocation, routeDirections, heading } = useBusStops()
   const [favoriteStops, setFavoriteStops] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -108,6 +108,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
                 compact
                 onToggleFavorite={handleToggleFavorite}
                 directions={routeDirections[stop.stopId]}
+                heading={heading}
               />
             ))}
           </ul>
@@ -126,6 +127,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
                 isFavorite={Boolean(favoriteStops[stop.stopId])}
                 onToggleFavorite={handleToggleFavorite}
                 directions={routeDirections[stop.stopId]}
+                heading={heading}
               />
             ))}
           {noMatches && (
