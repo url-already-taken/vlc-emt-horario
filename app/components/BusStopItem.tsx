@@ -3,6 +3,12 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import BusArrivalInfo from "./BusArrivalInfo"
 import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
+import {
+  bearingToCompassLabel,
+  calculateDistance,
+  getBearing,
+  shortestAngleDiff,
+} from "../../lib/geoUtils"
 
 interface BusStopItemProps {
   stop: BusStop
@@ -13,6 +19,7 @@ interface BusStopItemProps {
   onToggleFavorite: (stopId: string) => void
   directions?: RouteDirectionInfo[]
   compact?: boolean
+  heading?: number | null
 }
 
 export default function BusStopItem({
@@ -24,6 +31,7 @@ export default function BusStopItem({
   onToggleFavorite,
   directions = [],
   compact = false,
+  heading = null,
 }: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
   const ref = useRef<HTMLLIElement>(null)
@@ -52,8 +60,22 @@ export default function BusStopItem({
     }
   }, [])
 
+  const directionInfo =
+    userLocation != null
+      ? buildDirectionInfo({
+          userLat: userLocation.latitude,
+          userLon: userLocation.longitude,
+          stopLat: stop.lat,
+          stopLon: stop.lon,
+          heading,
+        })
+      : null
+  const fallbackText =
+    sortBy === "nearest"
+      ? "Activa tu ubicación para calcular la distancia."
+      : "Próximo bus: por confirmar"
+
   if (compact) {
-    const primaryDirection = directions[0]
     return (
       <li ref={ref} className="border rounded p-3 bg-amber-50/50">
         <div className="flex items-start justify-between gap-3">
@@ -64,26 +86,15 @@ export default function BusStopItem({
                 ★
               </span>
             </div>
-            <div className="text-xs text-gray-600">
-              {sortBy === "nearest" && userLocation ? (
-                (() => {
-                  const distanceKm = calculateDistance(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    stop.lat,
-                    stop.lon,
-                  )
-                  const distanceM = distanceKm * 1000
-                  const isClose = distanceM <= 150
-                  return (
-                    <span className={isClose ? "text-green-600 font-bold" : ""}>
-                      {isClose ? "🚶" : ""}
-                      {distanceM < 1000
-                        ? `~${distanceM.toFixed(0)} m`
-                        : `~${distanceKm.toFixed(2)} km`}
-                    </span>
-                  )
-                })()
+            <div className="text-xs text-gray-600 space-y-1">
+              {directionInfo ? (
+                <>
+                  <span className={directionInfo.isClose ? "text-green-600 font-bold" : undefined}>
+                    {directionInfo.isClose ? "🚶 " : ""}
+                    {formatDistanceLabel(directionInfo)}
+                  </span>
+                  <DirectionIndicator info={directionInfo} variant="compact" />
+                </>
               ) : (
                 stop.ubica
               )}
@@ -125,27 +136,16 @@ export default function BusStopItem({
         </Button>
       </div>
       <div className="text-sm text-gray-600 mb-2">
-        {sortBy === "nearest" && userLocation ? (
-          (() => {
-            const distanceKm = calculateDistance(
-              userLocation.latitude,
-              userLocation.longitude,
-              stop.lat,
-              stop.lon,
-            )
-            const distanceM = distanceKm * 1000
-            const isClose = distanceM <= 150
-            return (
-              <span className={isClose ? "text-green-600 font-bold" : ""}>
-                {isClose ? "🚶" : ""} Distancia:{" "}
-                {distanceM < 1000
-                  ? `~${distanceM.toFixed(0)} m`
-                  : `~${distanceKm.toFixed(2)} km`}
-              </span>
-            )
-          })()
+        {directionInfo ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={directionInfo.isClose ? "text-green-600 font-bold" : undefined}>
+              {directionInfo.isClose ? "🚶 " : ""}
+              {formatDistanceLabel(directionInfo)}
+            </span>
+            <DirectionIndicator info={directionInfo} />
+          </div>
         ) : (
-          `Próximo bus: por confirmar`
+          fallbackText
         )}
       </div>
       {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} />}
@@ -154,20 +154,101 @@ export default function BusStopItem({
   )
 }
 
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371 // Radius of the earth in km
-  const dLat = deg2rad(lat2 - lat1)
-  const dLon = deg2rad(lon2 - lon1)
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) *
-      Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
+interface DirectionInfo {
+  distanceKm: number
+  distanceM: number
+  isClose: boolean
+  bearing: number
+  compassLabel: string
+  headingAvailable: boolean
+  relative: number | null
+  isStraight: boolean
 }
 
-function deg2rad(deg: number): number {
-  return deg * (Math.PI / 180)
+const COMPASS_ARROW_MAP: Record<string, string> = {
+  N: "↑",
+  NE: "↗",
+  E: "→",
+  SE: "↘",
+  S: "↓",
+  SO: "↙",
+  O: "←",
+  NO: "↖",
+}
+
+function buildDirectionInfo({
+  userLat,
+  userLon,
+  stopLat,
+  stopLon,
+  heading,
+}: {
+  userLat: number
+  userLon: number
+  stopLat: number
+  stopLon: number
+  heading: number | null
+}): DirectionInfo {
+  const distanceKm = calculateDistance(userLat, userLon, stopLat, stopLon)
+  const distanceM = distanceKm * 1000
+  const bearing = getBearing(userLat, userLon, stopLat, stopLon)
+  const compassLabel = bearingToCompassLabel(bearing)
+  const headingAvailable = typeof heading === "number" && Number.isFinite(heading)
+  const relative = headingAvailable ? shortestAngleDiff(heading!, bearing) : null
+  const isStraight = relative != null && Math.abs(relative) <= 15
+
+  return {
+    distanceKm,
+    distanceM,
+    isClose: distanceM <= 150,
+    bearing,
+    compassLabel,
+    headingAvailable,
+    relative,
+    isStraight,
+  }
+}
+
+function formatDistanceLabel(info: DirectionInfo): string {
+  return info.distanceM < 1000
+    ? `~${info.distanceM.toFixed(0)} m`
+    : `~${info.distanceKm.toFixed(2)} km`
+}
+
+function DirectionIndicator({
+  info,
+  variant = "regular",
+}: {
+  info: DirectionInfo
+  variant?: "regular" | "compact"
+}) {
+  const textSize = variant === "compact" ? "text-xs" : "text-sm"
+
+  if (info.headingAvailable && info.relative != null) {
+    const directionLabel = info.isStraight
+      ? "прямо"
+      : `${info.relative > 0 ? "вправо" : "влево"} ${Math.abs(info.relative).toFixed(0)}°`
+
+    return (
+      <div className={`flex items-center gap-2 ${textSize} text-slate-600`}>
+        <span
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-base"
+          style={{ transform: `rotate(${info.relative}deg)` }}
+          aria-label={directionLabel}
+        >
+          ↑
+        </span>
+        <span className={info.isStraight ? "text-green-600 font-semibold" : undefined}>{directionLabel}</span>
+      </div>
+    )
+  }
+
+  const compassArrow = COMPASS_ARROW_MAP[info.compassLabel] ?? "↑"
+
+  return (
+    <div className={`flex items-center gap-1 ${textSize} text-slate-600`}>
+      <span aria-hidden="true">{compassArrow}</span>
+      <span>{info.compassLabel}</span>
+    </div>
+  )
 }
