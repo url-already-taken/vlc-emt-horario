@@ -16,6 +16,9 @@ const FORWARD_RATIO = 0.55
 const ROUTE_BADGE_RADIUS = 12
 const ROUTE_BADGE_FILL = "#ffffff"
 const ROUTE_BADGE_TEXT = "#1d4ed8"
+const RADAR_RADIUS_RATIO = 0.42
+const MIN_VISUAL_DISTANCE_KM = 0.05
+const MAX_VISUAL_DISTANCE_KM = 2.5
 
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
@@ -88,10 +91,16 @@ export default function CompassOverlay() {
       ctx.stroke()
     }
 
-    const scalePxPerKm = 1000 // Увеличиваем масштаб для лучшей видимости
     const userLat = userLocation.latitude
     const userLon = userLocation.longitude
     const stopLookup = new Map<string, BusStop>(stops.map((stop) => [stop.stopId, stop]))
+    const radiusPx = Math.min(cssWidth, cssHeight) * RADAR_RADIUS_RATIO
+    const distancesKm = nearestStops
+      .map((stop) => distanceKm(userLat, userLon, Number(stop.lat), Number(stop.lon)))
+      .filter((value) => Number.isFinite(value))
+    const rawMaxDist = distancesKm.length ? Math.max(...distancesKm) : MIN_VISUAL_DISTANCE_KM
+    const normalizedMaxDist = clamp(rawMaxDist, MIN_VISUAL_DISTANCE_KM, MAX_VISUAL_DISTANCE_KM)
+    const scalePxPerKm = radiusPx / normalizedMaxDist
 
     const projectPoint = (lat: number, lon: number) => {
       const distKm = distanceKm(userLat, userLon, lat, lon)
@@ -243,7 +252,7 @@ export default function CompassOverlay() {
     })
   }
 
-  function drawRouteBadge(
+function drawRouteBadge(
     ctx: CanvasRenderingContext2D,
     {
       centerX,
@@ -286,4 +295,8 @@ export default function CompassOverlay() {
       }}
     />
   )
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
 }
