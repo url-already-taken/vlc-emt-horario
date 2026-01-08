@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react"
 import { useBusStops } from "../../lib/BusStopContext"
 import { deg2rad, distanceKm, getBearing } from "../../lib/geoUtils"
 import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
+import { useDeviceHeading } from "../../lib/useDeviceHeading"
 
 const ROUTE_LINE_COLOR = "rgba(59, 130, 246, 0.65)"
 const ROUTE_LINE_WIDTH = 1.5
@@ -15,7 +16,6 @@ const FORWARD_RATIO = 0.55
 const ROUTE_BADGE_RADIUS = 12
 const ROUTE_BADGE_FILL = "#ffffff"
 const ROUTE_BADGE_TEXT = "#1d4ed8"
-const HEADING_SMOOTHING = 0.25
 
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
@@ -24,49 +24,13 @@ export default function CompassOverlay() {
   const rafIdRef = useRef<number | null>(null)
   const needsDrawRef = useRef(true)
   const drawCanvasRef = useRef<() => void>(() => {})
+  const { heading } = useDeviceHeading({ enabled: true })
 
   useEffect(() => {
-    const orientationEvent = getOrientationEventName()
-
-    function handleOrientation(event: DeviceOrientationEvent) {
-      const nextHeading = deriveHeading(event)
-      if (nextHeading == null) return
-      headingRef.current = smoothHeading(headingRef.current, nextHeading)
-      needsDrawRef.current = true
-    }
-
-    function subscribe() {
-      window.addEventListener(orientationEvent, handleOrientation as EventListener)
-    }
-
-    function unsubscribe() {
-      window.removeEventListener(orientationEvent, handleOrientation as EventListener)
-    }
-
-    function requestPermissionIfNeeded() {
-      if (
-        typeof DeviceOrientationEvent !== "undefined" &&
-        typeof (DeviceOrientationEvent as any).requestPermission === "function"
-      ) {
-        ;(DeviceOrientationEvent as any)
-          .requestPermission()
-          .then((perm: PermissionState) => {
-            if (perm === "granted") {
-              subscribe()
-            }
-          })
-          .catch(console.error)
-      } else {
-        subscribe()
-      }
-    }
-
-    requestPermissionIfNeeded()
-
-    return () => {
-      unsubscribe()
-    }
-  }, [])
+    if (heading == null) return
+    headingRef.current = heading
+    needsDrawRef.current = true
+  }, [heading])
 
   useEffect(() => {
     needsDrawRef.current = true
@@ -322,74 +286,4 @@ export default function CompassOverlay() {
       }}
     />
   )
-}
-
-function getOrientationEventName(): "deviceorientation" | "deviceorientationabsolute" {
-  if (typeof window !== "undefined" && "ondeviceorientationabsolute" in window) {
-    return "deviceorientationabsolute"
-  }
-  return "deviceorientation"
-}
-
-function deriveHeading(event: DeviceOrientationEvent): number | null {
-  let heading: number | null = null
-
-  if (typeof (event as any).webkitCompassHeading === "number") {
-    heading = (event as any).webkitCompassHeading
-  } else if (
-    typeof event.alpha === "number" &&
-    typeof event.beta === "number" &&
-    typeof event.gamma === "number"
-  ) {
-    heading = calculateCompassHeading(event.alpha, event.beta, event.gamma)
-  } else if (typeof event.alpha === "number") {
-    heading = 360 - event.alpha
-  }
-
-  if (heading == null || Number.isNaN(heading)) return null
-  return normalizeHeading(applyScreenOrientation(heading))
-}
-
-function calculateCompassHeading(alpha: number, beta: number, gamma: number): number {
-  const alphaRad = deg2rad(alpha)
-  const betaRad = deg2rad(beta)
-  const gammaRad = deg2rad(gamma)
-
-  const cA = Math.cos(alphaRad)
-  const sA = Math.sin(alphaRad)
-  const cB = Math.cos(betaRad)
-  const sB = Math.sin(betaRad)
-  const cG = Math.cos(gammaRad)
-  const sG = Math.sin(gammaRad)
-
-  const rA = -cA * sG - sA * sB * cG
-  const rB = -sA * sG + cA * sB * cG
-  let heading = Math.atan2(rA, rB)
-
-  if (heading < 0) {
-    heading += 2 * Math.PI
-  }
-
-  return (heading * 180) / Math.PI
-}
-
-function applyScreenOrientation(heading: number): number {
-  if (typeof window === "undefined") return heading
-  const angle = window.screen?.orientation?.angle ?? (window as any).orientation ?? 0
-  return heading + angle
-}
-
-function normalizeHeading(value: number): number {
-  const normalized = value % 360
-  return normalized < 0 ? normalized + 360 : normalized
-}
-
-function smoothHeading(previous: number, next: number): number {
-  if (!Number.isFinite(previous)) return next
-  const diff = shortestAngleDiff(previous, next)
-  return normalizeHeading(previous + diff * HEADING_SMOOTHING)
-}
-
-function shortestAngleDiff(from: number, to: number): number {
-  return ((to - from + 540) % 360) - 180
 }
