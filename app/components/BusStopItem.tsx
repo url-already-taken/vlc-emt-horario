@@ -65,14 +65,28 @@ export default function BusStopItem({
               </span>
             </div>
             <div className="text-xs text-gray-600">
-              {sortBy === "nearest" && userLocation
-                ? `~${calculateDistance(
+              {sortBy === "nearest" && userLocation ? (
+                (() => {
+                  const distanceKm = calculateDistance(
                     userLocation.latitude,
                     userLocation.longitude,
                     stop.lat,
                     stop.lon,
-                  ).toFixed(2)} km`
-                : stop.ubica}
+                  )
+                  const distanceM = distanceKm * 1000
+                  const isClose = distanceM <= 150
+                  return (
+                    <span className={isClose ? "text-green-600 font-bold" : ""}>
+                      {isClose ? "🚶" : ""}
+                      {distanceM < 1000
+                        ? `~${distanceM.toFixed(0)} m`
+                        : `~${distanceKm.toFixed(2)} km`}
+                    </span>
+                  )
+                })()
+              ) : (
+                stop.ubica
+              )}
             </div>
             {isVisible && (
               <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="compact" />
@@ -111,14 +125,28 @@ export default function BusStopItem({
         </Button>
       </div>
       <div className="text-sm text-gray-600 mb-2">
-        {sortBy === "nearest" && userLocation
-          ? `Distancia: ${calculateDistance(
+        {sortBy === "nearest" && userLocation ? (
+          (() => {
+            const distanceKm = calculateDistance(
               userLocation.latitude,
               userLocation.longitude,
               stop.lat,
               stop.lon,
-            ).toFixed(2)} km`
-          : `Próximo bus: por confirmar`}
+            )
+            const distanceM = distanceKm * 1000
+            const isClose = distanceM <= 150
+            return (
+              <span className={isClose ? "text-green-600 font-bold" : ""}>
+                {isClose ? "🚶" : ""} Distancia:{" "}
+                {distanceM < 1000
+                  ? `~${distanceM.toFixed(0)} m`
+                  : `~${distanceKm.toFixed(2)} km`}
+              </span>
+            )
+          })()
+        ) : (
+          `Próximo bus: por confirmar`
+        )}
       </div>
       {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} />}
       
