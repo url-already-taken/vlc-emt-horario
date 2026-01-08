@@ -74,11 +74,15 @@ export default function CompassOverlay() {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const { width, height } = canvas
-    ctx.clearRect(0, 0, width, height)
+    const cssWidth = canvas.clientWidth || window.innerWidth
+    const cssHeight = canvas.clientHeight || window.innerHeight
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio ?? 1 : 1
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, cssWidth, cssHeight)
 
     ctx.save()
-    ctx.translate(width / 2, height / 2)
+    ctx.translate(cssWidth / 2, cssHeight / 2)
     // Разворачиваем canvas так, чтобы "вперёд телефона" всегда было вверху экрана.
     ctx.rotate(-heading * (Math.PI / 180))
 
@@ -121,7 +125,7 @@ export default function CompassOverlay() {
       const { x, y } = projectPoint(stopLat, stopLon)
 
       // Отрисовываем только видимые в текущем масштабе точки
-      if (Math.abs(x) < width / 2 && Math.abs(y) < height / 2) {
+      if (Math.abs(x) < cssWidth / 2 && Math.abs(y) < cssHeight / 2) {
         drawDirectionLines(ctx, {
           stopX: x,
           stopY: y,
@@ -157,8 +161,11 @@ export default function CompassOverlay() {
   function handleResize() {
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
+    const dpr = window.devicePixelRatio ?? 1
+    canvas.style.width = `${window.innerWidth}px`
+    canvas.style.height = `${window.innerHeight}px`
+    canvas.width = Math.floor(window.innerWidth * dpr)
+    canvas.height = Math.floor(window.innerHeight * dpr)
     drawCanvas()
   }
 
