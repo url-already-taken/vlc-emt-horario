@@ -19,6 +19,9 @@ const ROUTE_BADGE_TEXT = "#1d4ed8"
 const RADAR_RADIUS_RATIO = 0.42
 const MIN_VISUAL_DISTANCE_KM = 0.05
 const MAX_VISUAL_DISTANCE_KM = 2.5
+const RANGE_RINGS_METERS = [50, 100, 250, 500]
+const RANGE_RING_STROKE = "rgba(148, 163, 184, 0.5)"
+const RANGE_LABEL_COLOR = "#475569"
 
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
@@ -73,24 +76,6 @@ export default function CompassOverlay() {
 
     ctx.save()
     ctx.translate(cssWidth / 2, cssHeight / 2)
-    // Разворачиваем canvas так, чтобы "вперёд телефона" всегда было вверху экрана.
-    ctx.rotate(-headingRef.current * (Math.PI / 180))
-
-    // Рисуем "я" в центре
-    ctx.beginPath()
-    ctx.arc(0, 0, 6, 0, 2 * Math.PI)
-    ctx.fillStyle = "blue"
-    ctx.fill()
-
-    if (process.env.NODE_ENV !== "production") {
-      ctx.beginPath()
-      ctx.moveTo(0, 0)
-      ctx.lineTo(0, -40)
-      ctx.strokeStyle = "#1e1e1e"
-      ctx.lineWidth = 2
-      ctx.stroke()
-    }
-
     const userLat = userLocation.latitude
     const userLon = userLocation.longitude
     const stopLookup = new Map<string, BusStop>(stops.map((stop) => [stop.stopId, stop]))
@@ -101,6 +86,22 @@ export default function CompassOverlay() {
     const rawMaxDist = distancesKm.length ? Math.max(...distancesKm) : MIN_VISUAL_DISTANCE_KM
     const normalizedMaxDist = clamp(rawMaxDist, MIN_VISUAL_DISTANCE_KM, MAX_VISUAL_DISTANCE_KM)
     const scalePxPerKm = radiusPx / normalizedMaxDist
+
+    drawRangeRings(ctx, {
+      scalePxPerKm,
+      maxRadiusPx: radiusPx,
+    })
+
+    // Разворачиваем canvas так, чтобы "вперёд телефона" всегда было вверху экрана.
+    ctx.rotate(-headingRef.current * (Math.PI / 180))
+
+    drawForwardMarker(ctx)
+
+    // Рисуем "я" в центре
+    ctx.beginPath()
+    ctx.arc(0, 0, 6, 0, 2 * Math.PI)
+    ctx.fillStyle = "blue"
+    ctx.fill()
 
     const projectPoint = (lat: number, lon: number) => {
       const distKm = distanceKm(userLat, userLon, lat, lon)
@@ -299,4 +300,50 @@ function drawRouteBadge(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
+}
+
+function drawRangeRings(
+  ctx: CanvasRenderingContext2D,
+  { scalePxPerKm, maxRadiusPx }: { scalePxPerKm: number; maxRadiusPx: number },
+) {
+  ctx.save()
+  ctx.strokeStyle = RANGE_RING_STROKE
+  ctx.lineWidth = 1
+  ctx.setLineDash([6, 6])
+  let labeled = false
+  RANGE_RINGS_METERS.forEach((meters) => {
+    const radiusPx = (meters / 1000) * scalePxPerKm
+    if (radiusPx < 15 || radiusPx > maxRadiusPx) return
+    ctx.beginPath()
+    ctx.arc(0, 0, radiusPx, 0, 2 * Math.PI)
+    ctx.stroke()
+
+    if (!labeled) {
+      ctx.save()
+      ctx.setLineDash([])
+      ctx.fillStyle = RANGE_LABEL_COLOR
+      ctx.font = "10px Inter, system-ui, sans-serif"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "bottom"
+      ctx.fillText(`${meters} m`, 0, -radiusPx - 4)
+      ctx.restore()
+      labeled = true
+    }
+  })
+  ctx.restore()
+}
+
+function drawForwardMarker(ctx: CanvasRenderingContext2D) {
+  ctx.save()
+  ctx.fillStyle = "rgba(59, 130, 246, 0.85)"
+  ctx.strokeStyle = "rgba(37, 99, 235, 0.9)"
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(0, -50)
+  ctx.lineTo(10, -30)
+  ctx.lineTo(-10, -30)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
 }
