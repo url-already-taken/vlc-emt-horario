@@ -22,6 +22,7 @@ const MAX_VISUAL_DISTANCE_KM = 2.5
 const RANGE_RINGS_METERS = [50, 100, 250, 500]
 const RANGE_RING_STROKE = "rgba(148, 163, 184, 0.5)"
 const RANGE_LABEL_COLOR = "#475569"
+const MAX_LABEL_COUNT = 4
 
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
@@ -113,6 +114,8 @@ export default function CompassOverlay() {
       return { x, y }
     }
 
+    const labelRects: Array<{ left: number; right: number; top: number; bottom: number }> = []
+
     nearestStops.forEach((stop) => {
       // Проверяем, что координаты остановки - числа
       const stopLat = Number(stop.lat)
@@ -137,10 +140,27 @@ export default function CompassOverlay() {
         ctx.fill()
 
         // Добавляем текст с названием остановки
-        ctx.font = "14px Arial"
-        ctx.fillStyle = "black"
-        ctx.textAlign = "center"
-        ctx.fillText(formatStopName(stop.name), x, y - 12)
+        const label = formatStopName(stop.name)
+        if (label && labelRects.length < MAX_LABEL_COUNT) {
+          const labelX = x
+          const labelY = y - 12
+          ctx.font = "14px Arial"
+          ctx.fillStyle = "black"
+          ctx.textAlign = "center"
+          const metrics = ctx.measureText(label)
+          const padding = 6
+          const fontHeight = 14
+          const halfWidth = metrics.width / 2 + padding
+          const top = labelY - fontHeight - padding / 2
+          const bottom = labelY + padding / 2
+          const left = labelX - halfWidth
+          const right = labelX + halfWidth
+          const overlaps = labelRects.some((rect) => !(right < rect.left || left > rect.right || bottom < rect.top || top > rect.bottom))
+          if (!overlaps) {
+            ctx.fillText(label, labelX, labelY)
+            labelRects.push({ left, right, top, bottom })
+          }
+        }
       }
     })
 
