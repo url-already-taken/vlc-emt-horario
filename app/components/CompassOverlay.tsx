@@ -79,7 +79,7 @@ export default function CompassOverlay() {
 
     ctx.save()
     ctx.translate(width / 2, height / 2)
-    // Поворачиваем canvas в обратную сторону, чтобы "север" был всегда сверху.
+    // Разворачиваем canvas так, чтобы "вперёд телефона" всегда было вверху экрана.
     ctx.rotate(-heading * (Math.PI / 180))
 
     // Рисуем "я" в центре
@@ -87,6 +87,15 @@ export default function CompassOverlay() {
     ctx.arc(0, 0, 6, 0, 2 * Math.PI)
     ctx.fillStyle = "blue"
     ctx.fill()
+
+    if (process.env.NODE_ENV !== "production") {
+      ctx.beginPath()
+      ctx.moveTo(0, 0)
+      ctx.lineTo(0, -40)
+      ctx.strokeStyle = "#1e1e1e"
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
 
     const scalePxPerKm = 1000 // Увеличиваем масштаб для лучшей видимости
     const userLat = userLocation.latitude
@@ -96,8 +105,7 @@ export default function CompassOverlay() {
     const projectPoint = (lat: number, lon: number) => {
       const distKm = distanceKm(userLat, userLon, lat, lon)
       const bearing = getBearing(userLat, userLon, lat, lon)
-      const adjustedBearing = (bearing - heading + 360) % 360
-      const angleRad = deg2rad(adjustedBearing)
+      const angleRad = deg2rad(bearing)
       const r = distKm * scalePxPerKm
       const x = r * Math.sin(angleRad)
       const y = -r * Math.cos(angleRad)
