@@ -93,12 +93,22 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
             const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
             const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
             const direction = directionByLine.get(bus.line.toUpperCase())
+            const rowClass =
+              variant === "compact"
+                ? "text-xs border-b border-gray-100 last:border-b-0 pb-1"
+                : "text-sm border-b border-gray-100 last:border-b-0 pb-1"
 
             return (
-              <li key={`${stopId}-${index}`} className="text-sm border-b border-gray-100 last:border-b-0 pb-1">
+              <li key={`${stopId}-${index}`} className={rowClass}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
+                    <span
+                      className={
+                        variant === "compact"
+                          ? "w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px]"
+                          : "w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
+                      }
+                    >
                       {bus.line}
                     </span>
                     <div className="min-w-0">

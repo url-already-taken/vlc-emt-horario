@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { BusStop } from "../lib/busStopTypes"
 import SearchBar from "./components/SearchBar"
 import BusStopList from "./components/BusStopList"
@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StopCompass from "./components/StopCompass"
 import CompassOverlay from "./components/CompassOverlay"
 
-const GEO_PERMISSION_STORAGE_KEY = "paradaya:geo-permission-granted"
+const GEO_PERMISSION_STATE_STORAGE_KEY = "paradaya:geo-permission-state"
+const LEGACY_GEO_PERMISSION_STORAGE_KEY = "paradaya:geo-permission-granted"
 const safeLocalStorage = {
   get(key: string) {
     if (typeof window === "undefined") return null
@@ -41,15 +42,35 @@ const safeLocalStorage = {
   },
 }
 
+function readStoredGeoPermissionState(): PermissionState | null {
+  const storedState = safeLocalStorage.get(GEO_PERMISSION_STATE_STORAGE_KEY)
+  if (storedState === "granted" || storedState === "denied" || storedState === "prompt") {
+    return storedState
+  }
+
+  const legacyGrant = safeLocalStorage.get(LEGACY_GEO_PERMISSION_STORAGE_KEY)
+  if (legacyGrant === "true") return "granted"
+
+  return null
+}
+
+function persistGeoPermissionState(state: PermissionState) {
+  safeLocalStorage.set(GEO_PERMISSION_STATE_STORAGE_KEY, state)
+  if (state === "granted") {
+    safeLocalStorage.set(LEGACY_GEO_PERMISSION_STORAGE_KEY, "true")
+  } else {
+    safeLocalStorage.remove(LEGACY_GEO_PERMISSION_STORAGE_KEY)
+  }
+}
+
 function HomeContent() {
-  const [sortBy, setSortBy] = useState<"nearest" | "soonest">("nearest")
+  const sortBy: "nearest" | "soonest" = "nearest"
   const [selectedStop, setSelectedStop] = useState<BusStop | null>(null)
   const [showAllStations, setShowAllStations] = useState(false)
   const [showCompassOverlay, setShowCompassOverlay] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
-  const hasRequestedInitialGeo = useRef(false)
   const { setUserLocation, setDistanceFilter, loading, error } = useBusStops()
 
   const requestUserLocation = useCallback(() => {
@@ -66,14 +87,15 @@ function HomeContent() {
           longitude: position.coords.longitude,
         })
         setGeoPermissionState("granted")
-        safeLocalStorage.set(GEO_PERMISSION_STORAGE_KEY, "true")
+        setGeoPermissionError(null)
+        persistGeoPermissionState("granted")
       },
       (geoError) => {
         console.error("Error getting user location:", geoError)
         if (geoError.code === geoError.PERMISSION_DENIED) {
           setGeoPermissionState("denied")
-          safeLocalStorage.remove(GEO_PERMISSION_STORAGE_KEY)
-          setGeoPermissionError("Activa los permisos de ubicación en el navegador para usar esta función.")
+          setGeoPermissionError(null)
+          persistGeoPermissionState("denied")
           return
         }
 
@@ -93,28 +115,19 @@ function HomeContent() {
     }
 
     let permissionStatus: PermissionStatus | null = null
-    const storedGrant = safeLocalStorage.get(GEO_PERMISSION_STORAGE_KEY) === "true"
-
-    const triggerInitialRequest = () => {
-      if (hasRequestedInitialGeo.current) return
-      hasRequestedInitialGeo.current = true
-      requestUserLocation()
-    }
+    const storedPermissionState = readStoredGeoPermissionState()
 
     const handlePermissionChange = () => {
       if (!permissionStatus) return
       setGeoPermissionState(permissionStatus.state)
+      persistGeoPermissionState(permissionStatus.state)
 
       if (permissionStatus.state === "granted") {
         requestUserLocation()
-      }
-
-      if (permissionStatus.state === "prompt") {
-        triggerInitialRequest()
-      }
-
-      if (permissionStatus.state === "denied") {
-        safeLocalStorage.remove(GEO_PERMISSION_STORAGE_KEY)
+      } else if (permissionStatus.state === "denied") {
+        setGeoPermissionError(null)
+      } else {
+        setGeoPermissionError(null)
       }
     }
 
@@ -123,11 +136,12 @@ function HomeContent() {
         try {
           permissionStatus = await navigator.permissions.query({ name: "geolocation" })
           setGeoPermissionState(permissionStatus.state)
+          persistGeoPermissionState(permissionStatus.state)
 
           if (permissionStatus.state === "granted") {
             requestUserLocation()
-          } else if (permissionStatus.state === "prompt") {
-            triggerInitialRequest()
+          } else {
+            setGeoPermissionError(null)
           }
 
           permissionStatus.addEventListener?.("change", handlePermissionChange)
@@ -138,12 +152,17 @@ function HomeContent() {
         }
       }
 
-      if (storedGrant) {
+      if (storedPermissionState) {
+        setGeoPermissionState(storedPermissionState)
+      } else {
+        setGeoPermissionState("prompt")
+      }
+
+      if (storedPermissionState === "granted") {
         setGeoPermissionState("granted")
         requestUserLocation()
       } else {
-        setGeoPermissionState("prompt")
-        triggerInitialRequest()
+        setGeoPermissionError(null)
       }
     }
 
@@ -169,56 +188,70 @@ function HomeContent() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">ParadaYa</h1>
+    <main className="max-w-4xl mx-auto px-4 py-4">
+      <header className="mb-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">ParadaYa</h1>
+      </header>
       {showCompassOverlay && <CompassOverlay />}
       {showAllStations ? (
-        <> 
-          <Button onClick={() => setShowAllStations(false)} className="mb-4">
+        <>
+          <Button onClick={() => setShowAllStations(false)} variant="outline" className="mb-4">
             Volver a paradas cercanas
           </Button>
           <AllStations />
         </>
       ) : (
         <>
-          <SearchBar query={searchQuery} onQueryChange={handleQueryChange} onSearch={handleSearch} />
-          {geoPermissionError && (
-            <div className="flex flex-wrap items-center gap-3 text-sm text-red-600 -mt-2 mb-2">
-              <span>{geoPermissionError}</span>
-              <Button size="sm" variant="outline" onClick={requestUserLocation}>
-                Intentar de nuevo
+          <section className="mb-3">
+            <SearchBar query={searchQuery} onQueryChange={handleQueryChange} onSearch={handleSearch} />
+            {geoPermissionState === "denied" && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-amber-700 mb-2">
+                <span>Acceso a ubicación bloqueado. Puedes reintentar tras habilitarlo en el navegador.</span>
+                <Button size="sm" variant="outline" onClick={requestUserLocation}>
+                  Reintentar acceso
+                </Button>
+              </div>
+            )}
+            {geoPermissionError && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-red-600 mb-2">
+                <span>{geoPermissionError}</span>
+                <Button size="sm" variant="outline" onClick={requestUserLocation}>
+                  Intentar de nuevo
+                </Button>
+              </div>
+            )}
+            {!geoPermissionError && geoPermissionState === "prompt" && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 mb-2">
+                <span>Comparte tu ubicación para ordenar las paradas por cercanía.</span>
+                <Button size="sm" variant="ghost" onClick={requestUserLocation}>
+                  Solicitar acceso
+                </Button>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="w-full sm:w-auto">
+                <Select onValueChange={handleDistanceFilterChange}>
+                  <SelectTrigger className="h-9 w-full sm:w-[180px] bg-white">
+                    <SelectValue placeholder="Filtrar por distancia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.1">100 metros</SelectItem>
+                    <SelectItem value="0.5">500 metros</SelectItem>
+                    <SelectItem value="1">1 kilómetro</SelectItem>
+                    <SelectItem value="Infinity">Todas las paradas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <StopCompass
+                isActive={showCompassOverlay}
+                onToggle={setShowCompassOverlay}
+              />
+              <Button onClick={() => setShowAllStations(true)} variant="outline" size="sm" className="h-9">
+                Ver todas
               </Button>
             </div>
-          )}
-          {!geoPermissionError && geoPermissionState === "prompt" && (
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 -mt-2 mb-2">
-              <span>Comparte tu ubicación para ordenar las paradas por cercanía.</span>
-              <Button size="sm" variant="ghost" onClick={requestUserLocation}>
-                Solicitar acceso
-              </Button>
-            </div>
-          )}
-          <div className="flex justify-between items-center mb-4">
-            <Select onValueChange={handleDistanceFilterChange}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar por distancia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.1">100 metros</SelectItem>
-                <SelectItem value="0.5">500 metros</SelectItem>
-                <SelectItem value="1">1 kilómetro</SelectItem>
-                <SelectItem value="Infinity">Todas las paradas</SelectItem>
-              </SelectContent>
-            </Select>
-            <StopCompass 
-              isActive={showCompassOverlay} 
-              onToggle={setShowCompassOverlay} 
-            />
-              <Button onClick={() => setShowAllStations(true)} className="mb-4">
-              Ver todas
-            </Button>
-          </div>
-          
+          </section>
+
           {loading && <div className="mt-4">Cargando paradas...</div>}
           {error && !loading && <div className="mt-4 text-red-600">{error}</div>}
           {!loading && !error && (

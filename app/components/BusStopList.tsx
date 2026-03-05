@@ -94,9 +94,11 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
   return (
     <div className="space-y-6">
       {favoriteList.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-gray-600 mb-2">Paradas favoritas</h3>
-          <ul className="space-y-4">
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Paradas favoritas ({favoriteList.length})
+          </h3>
+          <ul className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             {favoriteList.map((stop) => (
               <BusStopItem
                 key={`fav-${stop.stopId}`}
@@ -114,8 +116,11 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
           </ul>
         </section>
       )}
-      <section>
-        <ul className="space-y-4">
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Paradas cercanas ({regularList.length})
+        </h3>
+        <ul className="space-y-3">
           {regularList.length > 0 &&
             regularList.map((stop) => (
               <BusStopItem
