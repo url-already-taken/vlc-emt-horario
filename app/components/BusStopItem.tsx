@@ -3,12 +3,6 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import BusArrivalInfo from "./BusArrivalInfo"
 import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
-import {
-  bearingToCompassLabel,
-  calculateDistance,
-  getBearing,
-  shortestAngleDiff,
-} from "../../lib/geoUtils"
 
 interface BusStopItemProps {
   stop: BusStop
@@ -19,7 +13,6 @@ interface BusStopItemProps {
   onToggleFavorite: (stopId: string) => void
   directions?: RouteDirectionInfo[]
   compact?: boolean
-  heading?: number | null
 }
 
 export default function BusStopItem({
@@ -31,13 +24,14 @@ export default function BusStopItem({
   onToggleFavorite,
   directions = [],
   compact = false,
-  heading = null,
 }: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
   const ref = useRef<HTMLLIElement>(null)
-  const routeLabels = Array.from(new Set(stop.routes.map((route) => route.SN).filter(Boolean)))
-  const visibleRouteLabels = routeLabels.slice(0, 4)
-  const hiddenRouteCount = Math.max(routeLabels.length - visibleRouteLabels.length, 0)
+  const stopLabel = formatStopName(stop.name)
+  const distanceSummary =
+    sortBy === "nearest" && userLocation
+      ? formatDistanceSummary(userLocation.latitude, userLocation.longitude, stop.lat, stop.lon)
+      : stop.ubica
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -63,236 +57,140 @@ export default function BusStopItem({
     }
   }, [])
 
-  const directionInfo =
-    userLocation != null
-      ? buildDirectionInfo({
-          userLat: userLocation.latitude,
-          userLon: userLocation.longitude,
-          stopLat: stop.lat,
-          stopLon: stop.lon,
-          heading,
-        })
-      : null
-  const fallbackText =
-    sortBy === "nearest"
-      ? "Activa tu ubicación para calcular la distancia."
-      : "Próximo bus: por confirmar"
-
   if (compact) {
     return (
-      <li ref={ref} className="border border-amber-200/70 rounded-md p-2 bg-amber-50/40">
+      <li
+        ref={ref}
+        className="rounded-2xl border border-amber-200/70 bg-white/95 px-3 py-2.5 shadow-sm shadow-amber-100/60"
+      >
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="font-medium flex items-center gap-1 text-xs leading-tight">
-              <span className="truncate">{stop.name}</span>
-              <span className="text-amber-500" aria-label="Parada favorita">
+          <button type="button" onClick={() => onSelectStop(stop)} className="min-w-0 flex-1 text-left">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-semibold text-slate-900">{stopLabel}</span>
+              <span className="rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
                 ★
               </span>
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">#{stop.stopId}</div>
-            <div className="text-xs text-gray-600 space-y-1 mt-1">
-              {directionInfo ? (
-                <>
-                  <span className={directionInfo.isClose ? "text-green-600 font-bold" : undefined}>
-                    {directionInfo.isClose ? "🚶 " : ""}
-                    {formatDistanceLabel(directionInfo)}
-                  </span>
-                  <DirectionIndicator info={directionInfo} variant="compact" />
-                </>
-              ) : (
-                <span className="block break-words leading-tight">{stop.ubica}</span>
-              )}
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span className="font-medium text-slate-700">#{stop.stopId}</span>
+              <span className="text-slate-300">•</span>
+              <span className="truncate">{distanceSummary}</span>
             </div>
-            {isVisible && (
-              <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="compact" />
-            )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              onClick={() => onToggleFavorite(stop.stopId)}
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              aria-label="Eliminar de favoritos"
-            >
-              ✕
-            </Button>
-          </div>
+          </button>
+          <Button
+            type="button"
+            onClick={() => onToggleFavorite(stop.stopId)}
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 rounded-full border-slate-200 bg-white px-0 text-xs text-slate-500"
+            aria-label="Eliminar de favoritos"
+          >
+            ✕
+          </Button>
         </div>
+        {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="favorite" />}
       </li>
     )
   }
 
+  const distanceKmValue =
+    sortBy === "nearest" && userLocation
+      ? calculateDistance(userLocation.latitude, userLocation.longitude, stop.lat, stop.lon)
+      : null
+  const distanceMeters = distanceKmValue !== null ? distanceKmValue * 1000 : null
+  const isClose = distanceMeters !== null && distanceMeters <= 150
+
   return (
     <li
       ref={ref}
-      className="group border border-slate-200 rounded-lg p-3.5 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md"
+      className="group rounded-[28px] border border-slate-200/80 bg-white/90 p-4 shadow-sm shadow-slate-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="flex justify-between items-start gap-3 mb-2">
-        <div className="min-w-0">
-          <span className="font-semibold flex items-center gap-2">
-            <span className="truncate">{stop.name}</span>
-            {isFavorite && <span className="text-amber-500" aria-label="Parada favorita">★</span>}
-          </span>
-          <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 min-w-0">
-            <span className="font-medium shrink-0">#{stop.stopId}</span>
-            <span className="h-1 w-1 rounded-full bg-slate-300 shrink-0" aria-hidden="true" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <button type="button" onClick={() => onSelectStop(stop)} className="min-w-0 text-left">
+            <span className="flex items-center gap-2 font-semibold text-slate-900">
+              <span className="truncate">{stopLabel}</span>
+              {isFavorite && (
+                <span
+                  className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
+                  aria-label="Parada favorita"
+                >
+                  ★
+                </span>
+              )}
+            </span>
+          </button>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">#{stop.stopId}</span>
             <span className="truncate">{stop.ubica}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button
-            onClick={() => onSelectStop(stop)}
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2 text-xs"
-          >
-            Info
-          </Button>
-          <Button
-            onClick={() => onToggleFavorite(stop.stopId)}
-            variant={isFavorite ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 w-8 p-0 text-base"
-            aria-label={isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
-          >
-            {isFavorite ? "★" : "☆"}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          onClick={() => onToggleFavorite(stop.stopId)}
+          variant={isFavorite ? "default" : "outline"}
+          size="sm"
+          className={
+            isFavorite
+              ? "shrink-0 rounded-full bg-slate-900 px-3 text-xs"
+              : "shrink-0 rounded-full border-slate-200 bg-white/90 px-3 text-xs text-slate-600"
+          }
+        >
+          {isFavorite ? "★ Guardada" : "☆ Favorita"}
+        </Button>
       </div>
-      <div className="text-sm text-gray-600 mb-2">
-        {directionInfo ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className={directionInfo.isClose ? "text-green-600 font-bold" : undefined}>
-              {directionInfo.isClose ? "🚶 " : ""}
-              {formatDistanceLabel(directionInfo)}
-            </span>
-            <DirectionIndicator info={directionInfo} />
-          </div>
-        ) : (
-          fallbackText
-        )}
-      </div>
-      {visibleRouteLabels.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {visibleRouteLabels.map((line) => (
-            <span
-              key={`${stop.stopId}-${line}`}
-              className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-600"
-            >
-              L{line}
-            </span>
-          ))}
-          {hiddenRouteCount > 0 && (
-            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500">
-              +{hiddenRouteCount}
-            </span>
-          )}
+
+      {distanceMeters !== null && (
+        <div className="mt-3">
+          <span
+            className={
+              isClose
+                ? "inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+                : "inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
+            }
+          >
+            {isClose ? "Muy cerca" : "Distancia"}: {distanceSummary}
+          </span>
         </div>
       )}
-      {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} />}
+
+      {isVisible && (
+        <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
+          <BusArrivalInfo stopId={stop.stopId} directions={directions} />
+        </div>
+      )}
     </li>
   )
 }
 
-interface DirectionInfo {
-  distanceKm: number
-  distanceM: number
-  isClose: boolean
-  bearing: number
-  compassLabel: string
-  headingAvailable: boolean
-  relative: number | null
-  isStraight: boolean
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1)
+  const dLon = deg2rad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
 }
 
-const COMPASS_ARROW_MAP: Record<string, string> = {
-  N: "↑",
-  NE: "↗",
-  E: "→",
-  SE: "↘",
-  S: "↓",
-  SO: "↙",
-  O: "←",
-  NO: "↖",
+function deg2rad(deg: number): number {
+  return deg * (Math.PI / 180)
 }
 
-function buildDirectionInfo({
-  userLat,
-  userLon,
-  stopLat,
-  stopLon,
-  heading,
-}: {
-  userLat: number
-  userLon: number
-  stopLat: number
-  stopLon: number
-  heading: number | null
-}): DirectionInfo {
+function formatStopName(name: string): string {
+  if (name.includes(" - ")) {
+    return name.split(" - ")[1]
+  }
+  return name
+}
+
+function formatDistanceSummary(userLat: number, userLon: number, stopLat: number, stopLon: number): string {
   const distanceKm = calculateDistance(userLat, userLon, stopLat, stopLon)
   const distanceM = distanceKm * 1000
-  const bearing = getBearing(userLat, userLon, stopLat, stopLon)
-  const compassLabel = bearingToCompassLabel(bearing)
-  const headingAvailable = typeof heading === "number" && Number.isFinite(heading)
-  const relative = headingAvailable ? shortestAngleDiff(heading!, bearing) : null
-  const isStraight = relative != null && Math.abs(relative) <= 15
 
-  return {
-    distanceKm,
-    distanceM,
-    isClose: distanceM <= 150,
-    bearing,
-    compassLabel,
-    headingAvailable,
-    relative,
-    isStraight,
-  }
-}
-
-function formatDistanceLabel(info: DirectionInfo): string {
-  return info.distanceM < 1000
-    ? `~${info.distanceM.toFixed(0)} m`
-    : `~${info.distanceKm.toFixed(2)} km`
-}
-
-function DirectionIndicator({
-  info,
-  variant = "regular",
-}: {
-  info: DirectionInfo
-  variant?: "regular" | "compact"
-}) {
-  const isCompact = variant === "compact"
-  const textSize = isCompact ? "text-xs" : "text-sm"
-
-  if (info.headingAvailable && info.relative != null) {
-    const directionLabel = info.isStraight
-      ? "прямо"
-      : `${info.relative > 0 ? "вправо" : "влево"} ${Math.abs(info.relative).toFixed(0)}°`
-
-    return (
-      <div className={`flex items-center ${isCompact ? "flex-wrap gap-1" : "gap-2"} ${textSize} text-slate-600 min-w-0`}>
-        <span
-          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-base"
-          style={{ transform: `rotate(${info.relative}deg)` }}
-          aria-label={directionLabel}
-        >
-          ↑
-        </span>
-        <span className={`${isCompact ? "break-words" : ""} ${info.isStraight ? "text-green-600 font-semibold" : ""}`}>
-          {directionLabel}
-        </span>
-      </div>
-    )
-  }
-
-  const compassArrow = COMPASS_ARROW_MAP[info.compassLabel] ?? "↑"
-
-  return (
-    <div className={`flex items-center gap-1 ${textSize} text-slate-600`}>
-      <span aria-hidden="true">{compassArrow}</span>
-      <span>{info.compassLabel}</span>
-    </div>
-  )
+  return distanceM < 1000 ? `~${distanceM.toFixed(0)} m` : `~${distanceKm.toFixed(2)} km`
 }

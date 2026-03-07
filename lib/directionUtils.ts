@@ -1,4 +1,4 @@
-import { distanceKm, getBearing, normalizeBearing } from "./geoUtils"
+import { distanceKm, getBearing } from "./geoUtils"
 import type { BusStop, RouteDirectionInfo, StopDirectionMap } from "./busStopTypes"
 
 const MIN_DIRECTION_DISTANCE_M = 30
@@ -91,6 +91,11 @@ function findClosestNeighbor(stop: BusStop, candidates: BusStop[]): BusStop | nu
     }
   }
   return best ? best.stop : null
+}
+
+function normalizeBearing(value: number): number {
+  const normalized = value % 360
+  return normalized < 0 ? normalized + 360 : normalized
 }
 
 function bearingToCompass(bearing: number) {

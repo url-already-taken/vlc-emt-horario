@@ -1,11 +1,7 @@
-"use client"
-
 import type { BusStop } from "../../lib/busStopTypes"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import BusArrivalInfo from "./BusArrivalInfo"
-import StopPointer from "./StopPointer"
-import { useBusStops } from "../../lib/BusStopContext"
 
 interface BusStopDetailProps {
   stop: BusStop
@@ -13,8 +9,6 @@ interface BusStopDetailProps {
 }
 
 export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
-  const { userLocation, heading } = useBusStops()
-
   return (
     <Sheet open={true} onOpenChange={onClose}>
       <SheetContent>
@@ -22,12 +16,7 @@ export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
           <SheetTitle>{stop.name}</SheetTitle>
           <SheetDescription>Líneas y horarios previstos</SheetDescription>
         </SheetHeader>
-        <div className="mt-4 space-y-4">
-          <StopPointer
-            target={{ lat: stop.lat, lon: stop.lon, name: stop.name }}
-            userLocation={userLocation}
-            heading={heading}
-          />
+        <div className="mt-4 space-y-2">
           <p>ID de parada: {stop.stopId}</p>
           <p>Ubicación: {stop.ubica}</p>
           <div>

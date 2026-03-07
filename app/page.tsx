@@ -14,6 +14,14 @@ import CompassOverlay from "./components/CompassOverlay"
 
 const GEO_PERMISSION_STATE_STORAGE_KEY = "paradaya:geo-permission-state"
 const LEGACY_GEO_PERMISSION_STORAGE_KEY = "paradaya:geo-permission-granted"
+const USER_LOCATION_STORAGE_KEY = "paradaya:user-location"
+
+interface StoredLocation {
+  latitude: number
+  longitude: number
+  savedAt: number
+}
+
 const safeLocalStorage = {
   get(key: string) {
     if (typeof window === "undefined") return null
@@ -63,6 +71,57 @@ function persistGeoPermissionState(state: PermissionState) {
   }
 }
 
+function readStoredLocation(): StoredLocation | null {
+  const rawLocation = safeLocalStorage.get(USER_LOCATION_STORAGE_KEY)
+  if (!rawLocation) return null
+
+  try {
+    const parsed = JSON.parse(rawLocation) as Partial<StoredLocation>
+    if (
+      typeof parsed.latitude !== "number" ||
+      !Number.isFinite(parsed.latitude) ||
+      typeof parsed.longitude !== "number" ||
+      !Number.isFinite(parsed.longitude)
+    ) {
+      return null
+    }
+
+    return {
+      latitude: parsed.latitude,
+      longitude: parsed.longitude,
+      savedAt:
+        typeof parsed.savedAt === "number" && Number.isFinite(parsed.savedAt) ? parsed.savedAt : Date.now(),
+    }
+  } catch (err) {
+    console.warn("No se pudo leer la ubicación guardada:", err)
+    return null
+  }
+}
+
+function persistStoredLocation(location: { latitude: number; longitude: number }, savedAt = Date.now()) {
+  safeLocalStorage.set(
+    USER_LOCATION_STORAGE_KEY,
+    JSON.stringify({
+      latitude: location.latitude,
+      longitude: location.longitude,
+      savedAt,
+    }),
+  )
+}
+
+function formatLocationTimestamp(savedAt: number | null): string | null {
+  if (!savedAt) return null
+
+  try {
+    return new Intl.DateTimeFormat("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(savedAt)
+  } catch {
+    return null
+  }
+}
+
 function HomeContent() {
   const sortBy: "nearest" | "soonest" = "nearest"
   const [selectedStop, setSelectedStop] = useState<BusStop | null>(null)
@@ -71,7 +130,10 @@ function HomeContent() {
   const [searchQuery, setSearchQuery] = useState("")
   const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
+  const [cachedLocationSavedAt, setCachedLocationSavedAt] = useState<number | null>(null)
   const { setUserLocation, setDistanceFilter, loading, error } = useBusStops()
+  const hasCachedLocation = cachedLocationSavedAt !== null
+  const cachedLocationTime = formatLocationTimestamp(cachedLocationSavedAt)
 
   const requestUserLocation = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -82,13 +144,18 @@ function HomeContent() {
     setGeoPermissionError(null)
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserLocation({
+        const nextLocation = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        })
+        }
+        const savedAt = Date.now()
+
+        setUserLocation(nextLocation)
+        setCachedLocationSavedAt(savedAt)
         setGeoPermissionState("granted")
         setGeoPermissionError(null)
         persistGeoPermissionState("granted")
+        persistStoredLocation(nextLocation, savedAt)
       },
       (geoError) => {
         console.error("Error getting user location:", geoError)
@@ -116,6 +183,15 @@ function HomeContent() {
 
     let permissionStatus: PermissionStatus | null = null
     const storedPermissionState = readStoredGeoPermissionState()
+    const storedLocation = readStoredLocation()
+
+    if (storedLocation) {
+      setUserLocation({
+        latitude: storedLocation.latitude,
+        longitude: storedLocation.longitude,
+      })
+      setCachedLocationSavedAt(storedLocation.savedAt)
+    }
 
     const handlePermissionChange = () => {
       if (!permissionStatus) return
@@ -157,13 +233,7 @@ function HomeContent() {
       } else {
         setGeoPermissionState("prompt")
       }
-
-      if (storedPermissionState === "granted") {
-        setGeoPermissionState("granted")
-        requestUserLocation()
-      } else {
-        setGeoPermissionError(null)
-      }
+      setGeoPermissionError(null)
     }
 
     initPermission()
@@ -188,42 +258,55 @@ function HomeContent() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-4">
-      <header className="mb-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">ParadaYa</h1>
+    <main className="min-h-screen max-w-4xl mx-auto px-4 py-4 sm:py-6">
+      <header className="mb-4 rounded-[28px] border border-white/80 bg-white/85 px-4 py-4 shadow-sm shadow-slate-200/60 backdrop-blur sm:px-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Valencia EMT</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">ParadaYa</h1>
+        <p className="mt-1 text-sm text-slate-500">Paradas cercanas, favoritos y tiempos en una vista más compacta.</p>
       </header>
       {showCompassOverlay && <CompassOverlay />}
       {showAllStations ? (
         <>
-          <Button onClick={() => setShowAllStations(false)} variant="outline" className="mb-4">
+          <Button onClick={() => setShowAllStations(false)} variant="outline" className="mb-4 rounded-xl bg-white/90">
             Volver a paradas cercanas
           </Button>
           <AllStations />
         </>
       ) : (
         <>
-          <section className="mb-3">
+          <section className="mb-4 rounded-[28px] border border-white/80 bg-white/80 p-3 shadow-sm shadow-slate-200/50 backdrop-blur sm:p-4">
             <SearchBar query={searchQuery} onQueryChange={handleQueryChange} onSearch={handleSearch} />
-            {geoPermissionState === "denied" && (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-amber-700 mb-2">
+            {geoPermissionState === "denied" && !hasCachedLocation && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 <span>Acceso a ubicación bloqueado. Puedes reintentar tras habilitarlo en el navegador.</span>
-                <Button size="sm" variant="outline" onClick={requestUserLocation}>
+                <Button size="sm" variant="outline" className="rounded-full bg-white" onClick={requestUserLocation}>
                   Reintentar acceso
                 </Button>
               </div>
             )}
             {geoPermissionError && (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-red-600 mb-2">
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
                 <span>{geoPermissionError}</span>
-                <Button size="sm" variant="outline" onClick={requestUserLocation}>
+                <Button size="sm" variant="outline" className="rounded-full bg-white" onClick={requestUserLocation}>
                   Intentar de nuevo
                 </Button>
               </div>
             )}
-            {!geoPermissionError && geoPermissionState === "prompt" && (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 mb-2">
+            {!geoPermissionError && hasCachedLocation && geoPermissionState !== "granted" && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 px-3 py-2 text-xs text-slate-600">
+                <span>
+                  Usando tu última ubicación guardada
+                  {cachedLocationTime ? ` (${cachedLocationTime})` : ""} para ordenar por cercanía.
+                </span>
+                <Button size="sm" variant="ghost" className="rounded-full px-3" onClick={requestUserLocation}>
+                  Actualizar ubicación
+                </Button>
+              </div>
+            )}
+            {!geoPermissionError && !hasCachedLocation && geoPermissionState === "prompt" && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 px-3 py-2 text-xs text-slate-600">
                 <span>Comparte tu ubicación para ordenar las paradas por cercanía.</span>
-                <Button size="sm" variant="ghost" onClick={requestUserLocation}>
+                <Button size="sm" variant="ghost" className="rounded-full px-3" onClick={requestUserLocation}>
                   Solicitar acceso
                 </Button>
               </div>
@@ -231,7 +314,7 @@ function HomeContent() {
             <div className="flex flex-wrap items-center gap-2">
               <div className="w-full sm:w-auto">
                 <Select onValueChange={handleDistanceFilterChange}>
-                  <SelectTrigger className="h-9 w-full sm:w-[180px] bg-white">
+                  <SelectTrigger className="h-10 w-full rounded-xl border-slate-200 bg-white/90 shadow-sm sm:w-[190px]">
                     <SelectValue placeholder="Filtrar por distancia" />
                   </SelectTrigger>
                   <SelectContent>
@@ -246,7 +329,12 @@ function HomeContent() {
                 isActive={showCompassOverlay}
                 onToggle={setShowCompassOverlay}
               />
-              <Button onClick={() => setShowAllStations(true)} variant="outline" size="sm" className="h-9">
+              <Button
+                onClick={() => setShowAllStations(true)}
+                variant="outline"
+                size="sm"
+                className="h-10 rounded-xl border-slate-200 bg-white/90 px-4"
+              >
                 Ver todas
               </Button>
             </div>

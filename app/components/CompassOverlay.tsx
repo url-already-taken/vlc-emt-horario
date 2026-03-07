@@ -1,10 +1,9 @@
 "use client"
 
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { useBusStops } from "../../lib/BusStopContext"
 import { deg2rad, distanceKm, getBearing } from "../../lib/geoUtils"
 import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
-import { useDeviceHeading } from "../../lib/useDeviceHeading"
 
 const ROUTE_LINE_COLOR = "rgba(59, 130, 246, 0.65)"
 const ROUTE_LINE_WIDTH = 1.5
@@ -16,51 +15,58 @@ const FORWARD_RATIO = 0.55
 const ROUTE_BADGE_RADIUS = 12
 const ROUTE_BADGE_FILL = "#ffffff"
 const ROUTE_BADGE_TEXT = "#1d4ed8"
-const RADAR_RADIUS_RATIO = 0.42
-const MIN_VISUAL_DISTANCE_KM = 0.05
-const MAX_VISUAL_DISTANCE_KM = 2.5
-const RANGE_RINGS_METERS = [50, 100, 250, 500]
-const RANGE_RING_STROKE = "rgba(148, 163, 184, 0.5)"
-const RANGE_LABEL_COLOR = "#475569"
-const MAX_LABEL_COUNT = 4
+const HEADING_SMOOTHING = 0.25
 
 export default function CompassOverlay() {
   const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const headingRef = useRef(0)
-  const rafIdRef = useRef<number | null>(null)
-  const needsDrawRef = useRef(true)
-  const drawCanvasRef = useRef<() => void>(() => {})
-  const { heading } = useDeviceHeading({ enabled: true })
+  const [heading, setHeading] = useState(0)
 
   useEffect(() => {
-    if (heading == null) return
-    headingRef.current = heading
-    needsDrawRef.current = true
-  }, [heading])
+    const orientationEvent = getOrientationEventName()
 
-  useEffect(() => {
-    needsDrawRef.current = true
-  }, [nearestStops, userLocation, routeDirections, stops])
-
-  useEffect(() => {
-    function renderLoop() {
-      if (needsDrawRef.current) {
-        drawCanvasRef.current()
-        needsDrawRef.current = false
-      }
-      rafIdRef.current = window.requestAnimationFrame(renderLoop)
+    function handleOrientation(event: DeviceOrientationEvent) {
+      const nextHeading = deriveHeading(event)
+      if (nextHeading == null) return
+      setHeading((prev) => smoothHeading(prev, nextHeading))
     }
 
-    rafIdRef.current = window.requestAnimationFrame(renderLoop)
+    function subscribe() {
+      window.addEventListener(orientationEvent, handleOrientation as EventListener)
+    }
+
+    function unsubscribe() {
+      window.removeEventListener(orientationEvent, handleOrientation as EventListener)
+    }
+
+    function requestPermissionIfNeeded() {
+      if (
+        typeof DeviceOrientationEvent !== "undefined" &&
+        typeof (DeviceOrientationEvent as any).requestPermission === "function"
+      ) {
+        ;(DeviceOrientationEvent as any)
+          .requestPermission()
+          .then((perm: PermissionState) => {
+            if (perm === "granted") {
+              subscribe()
+            }
+          })
+          .catch(console.error)
+      } else {
+        subscribe()
+      }
+    }
+
+    requestPermissionIfNeeded()
 
     return () => {
-      if (rafIdRef.current != null) {
-        window.cancelAnimationFrame(rafIdRef.current)
-        rafIdRef.current = null
-      }
+      unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    drawCanvas()
+  }, [heading, nearestStops, userLocation, routeDirections, stops])
 
   function drawCanvas() {
     const canvas = canvasRef.current
@@ -68,35 +74,13 @@ export default function CompassOverlay() {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const cssWidth = canvas.clientWidth || window.innerWidth
-    const cssHeight = canvas.clientHeight || window.innerHeight
-    const dpr = typeof window !== "undefined" ? window.devicePixelRatio ?? 1 : 1
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, cssWidth, cssHeight)
+    const { width, height } = canvas
+    ctx.clearRect(0, 0, width, height)
 
     ctx.save()
-    ctx.translate(cssWidth / 2, cssHeight / 2)
-    const userLat = userLocation.latitude
-    const userLon = userLocation.longitude
-    const stopLookup = new Map<string, BusStop>(stops.map((stop) => [stop.stopId, stop]))
-    const radiusPx = Math.min(cssWidth, cssHeight) * RADAR_RADIUS_RATIO
-    const distancesKm = nearestStops
-      .map((stop) => distanceKm(userLat, userLon, Number(stop.lat), Number(stop.lon)))
-      .filter((value) => Number.isFinite(value))
-    const rawMaxDist = distancesKm.length ? Math.max(...distancesKm) : MIN_VISUAL_DISTANCE_KM
-    const normalizedMaxDist = clamp(rawMaxDist, MIN_VISUAL_DISTANCE_KM, MAX_VISUAL_DISTANCE_KM)
-    const scalePxPerKm = radiusPx / normalizedMaxDist
-
-    drawRangeRings(ctx, {
-      scalePxPerKm,
-      maxRadiusPx: radiusPx,
-    })
-
-    // Разворачиваем canvas так, чтобы "вперёд телефона" всегда было вверху экрана.
-    ctx.rotate(-headingRef.current * (Math.PI / 180))
-
-    drawForwardMarker(ctx)
+    ctx.translate(width / 2, height / 2)
+    // Поворачиваем canvas в обратную сторону, чтобы "север" был всегда сверху.
+    ctx.rotate(-heading * (Math.PI / 180))
 
     // Рисуем "я" в центре
     ctx.beginPath()
@@ -104,17 +88,21 @@ export default function CompassOverlay() {
     ctx.fillStyle = "blue"
     ctx.fill()
 
+    const scalePxPerKm = 1000 // Увеличиваем масштаб для лучшей видимости
+    const userLat = userLocation.latitude
+    const userLon = userLocation.longitude
+    const stopLookup = new Map<string, BusStop>(stops.map((stop) => [stop.stopId, stop]))
+
     const projectPoint = (lat: number, lon: number) => {
       const distKm = distanceKm(userLat, userLon, lat, lon)
       const bearing = getBearing(userLat, userLon, lat, lon)
-      const angleRad = deg2rad(bearing)
+      const adjustedBearing = (bearing - heading + 360) % 360
+      const angleRad = deg2rad(adjustedBearing)
       const r = distKm * scalePxPerKm
       const x = r * Math.sin(angleRad)
       const y = -r * Math.cos(angleRad)
       return { x, y }
     }
-
-    const labelRects: Array<{ left: number; right: number; top: number; bottom: number }> = []
 
     nearestStops.forEach((stop) => {
       // Проверяем, что координаты остановки - числа
@@ -125,7 +113,7 @@ export default function CompassOverlay() {
       const { x, y } = projectPoint(stopLat, stopLon)
 
       // Отрисовываем только видимые в текущем масштабе точки
-      if (Math.abs(x) < cssWidth / 2 && Math.abs(y) < cssHeight / 2) {
+      if (Math.abs(x) < width / 2 && Math.abs(y) < height / 2) {
         drawDirectionLines(ctx, {
           stopX: x,
           stopY: y,
@@ -140,27 +128,10 @@ export default function CompassOverlay() {
         ctx.fill()
 
         // Добавляем текст с названием остановки
-        const label = formatStopName(stop.name)
-        if (label && labelRects.length < MAX_LABEL_COUNT) {
-          const labelX = x
-          const labelY = y - 12
-          ctx.font = "14px Arial"
-          ctx.fillStyle = "black"
-          ctx.textAlign = "center"
-          const metrics = ctx.measureText(label)
-          const padding = 6
-          const fontHeight = 14
-          const halfWidth = metrics.width / 2 + padding
-          const top = labelY - fontHeight - padding / 2
-          const bottom = labelY + padding / 2
-          const left = labelX - halfWidth
-          const right = labelX + halfWidth
-          const overlaps = labelRects.some((rect) => !(right < rect.left || left > rect.right || bottom < rect.top || top > rect.bottom))
-          if (!overlaps) {
-            ctx.fillText(label, labelX, labelY)
-            labelRects.push({ left, right, top, bottom })
-          }
-        }
+        ctx.font = "14px Arial"
+        ctx.fillStyle = "black"
+        ctx.textAlign = "center"
+        ctx.fillText(formatStopName(stop.name), x, y - 12)
       }
     })
 
@@ -178,12 +149,9 @@ export default function CompassOverlay() {
   function handleResize() {
     const canvas = canvasRef.current
     if (!canvas) return
-    const dpr = window.devicePixelRatio ?? 1
-    canvas.style.width = `${window.innerWidth}px`
-    canvas.style.height = `${window.innerHeight}px`
-    canvas.width = Math.floor(window.innerWidth * dpr)
-    canvas.height = Math.floor(window.innerHeight * dpr)
-    needsDrawRef.current = true
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+    drawCanvas()
   }
 
   useEffect(() => {
@@ -273,7 +241,7 @@ export default function CompassOverlay() {
     })
   }
 
-function drawRouteBadge(
+  function drawRouteBadge(
     ctx: CanvasRenderingContext2D,
     {
       centerX,
@@ -302,8 +270,6 @@ function drawRouteBadge(
     ctx.fillText(text, centerX, centerY)
   }
 
-  drawCanvasRef.current = drawCanvas
-
   return (
     <canvas
       ref={canvasRef}
@@ -318,52 +284,72 @@ function drawRouteBadge(
   )
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
+function getOrientationEventName(): "deviceorientation" | "deviceorientationabsolute" {
+  if (typeof window !== "undefined" && "ondeviceorientationabsolute" in window) {
+    return "deviceorientationabsolute"
+  }
+  return "deviceorientation"
 }
 
-function drawRangeRings(
-  ctx: CanvasRenderingContext2D,
-  { scalePxPerKm, maxRadiusPx }: { scalePxPerKm: number; maxRadiusPx: number },
-) {
-  ctx.save()
-  ctx.strokeStyle = RANGE_RING_STROKE
-  ctx.lineWidth = 1
-  ctx.setLineDash([6, 6])
-  let labeled = false
-  RANGE_RINGS_METERS.forEach((meters) => {
-    const radiusPx = (meters / 1000) * scalePxPerKm
-    if (radiusPx < 15 || radiusPx > maxRadiusPx) return
-    ctx.beginPath()
-    ctx.arc(0, 0, radiusPx, 0, 2 * Math.PI)
-    ctx.stroke()
+function deriveHeading(event: DeviceOrientationEvent): number | null {
+  let heading: number | null = null
 
-    if (!labeled) {
-      ctx.save()
-      ctx.setLineDash([])
-      ctx.fillStyle = RANGE_LABEL_COLOR
-      ctx.font = "10px Inter, system-ui, sans-serif"
-      ctx.textAlign = "center"
-      ctx.textBaseline = "bottom"
-      ctx.fillText(`${meters} m`, 0, -radiusPx - 4)
-      ctx.restore()
-      labeled = true
-    }
-  })
-  ctx.restore()
+  if (typeof (event as any).webkitCompassHeading === "number") {
+    heading = (event as any).webkitCompassHeading
+  } else if (
+    typeof event.alpha === "number" &&
+    typeof event.beta === "number" &&
+    typeof event.gamma === "number"
+  ) {
+    heading = calculateCompassHeading(event.alpha, event.beta, event.gamma)
+  } else if (typeof event.alpha === "number") {
+    heading = 360 - event.alpha
+  }
+
+  if (heading == null || Number.isNaN(heading)) return null
+  return normalizeHeading(applyScreenOrientation(heading))
 }
 
-function drawForwardMarker(ctx: CanvasRenderingContext2D) {
-  ctx.save()
-  ctx.fillStyle = "rgba(59, 130, 246, 0.85)"
-  ctx.strokeStyle = "rgba(37, 99, 235, 0.9)"
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  ctx.moveTo(0, -50)
-  ctx.lineTo(10, -30)
-  ctx.lineTo(-10, -30)
-  ctx.closePath()
-  ctx.fill()
-  ctx.stroke()
-  ctx.restore()
+function calculateCompassHeading(alpha: number, beta: number, gamma: number): number {
+  const alphaRad = deg2rad(alpha)
+  const betaRad = deg2rad(beta)
+  const gammaRad = deg2rad(gamma)
+
+  const cA = Math.cos(alphaRad)
+  const sA = Math.sin(alphaRad)
+  const cB = Math.cos(betaRad)
+  const sB = Math.sin(betaRad)
+  const cG = Math.cos(gammaRad)
+  const sG = Math.sin(gammaRad)
+
+  const rA = -cA * sG - sA * sB * cG
+  const rB = -sA * sG + cA * sB * cG
+  let heading = Math.atan2(rA, rB)
+
+  if (heading < 0) {
+    heading += 2 * Math.PI
+  }
+
+  return (heading * 180) / Math.PI
+}
+
+function applyScreenOrientation(heading: number): number {
+  if (typeof window === "undefined") return heading
+  const angle = window.screen?.orientation?.angle ?? (window as any).orientation ?? 0
+  return heading + angle
+}
+
+function normalizeHeading(value: number): number {
+  const normalized = value % 360
+  return normalized < 0 ? normalized + 360 : normalized
+}
+
+function smoothHeading(previous: number, next: number): number {
+  if (!Number.isFinite(previous)) return next
+  const diff = shortestAngleDiff(previous, next)
+  return normalizeHeading(previous + diff * HEADING_SMOOTHING)
+}
+
+function shortestAngleDiff(from: number, to: number): number {
+  return ((to - from + 540) % 360) - 180
 }

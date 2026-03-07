@@ -12,7 +12,7 @@ interface Bus {
 interface BusArrivalInfoProps {
   stopId: string
   directions?: RouteDirectionInfo[]
-  variant?: "default" | "compact"
+  variant?: "default" | "compact" | "favorite"
 }
 
 export default function BusArrivalInfo({ stopId, directions = [], variant = "default" }: BusArrivalInfoProps) {
@@ -81,22 +81,73 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
     return map
   }, [directions])
 
-  if (loading) return <div>Cargando llegadas...</div>
-  if (error) return <div>{error}</div>
+  if (loading) {
+    return (
+      <div className={variant === "favorite" ? "mt-2 text-[11px] text-slate-400" : "text-sm text-slate-500"}>
+        Cargando llegadas...
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className={variant === "favorite" ? "mt-2 text-[11px] text-red-500" : "text-sm text-red-600"}>{error}</div>
+    )
+  }
+
+  if (variant === "favorite") {
+    return (
+      <div className="mt-2">
+        {buses.length > 0 ? (
+          <ul className="grid grid-cols-2 gap-1.5">
+            {buses.slice(0, 2).map((bus, index) => {
+              const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
+              const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
+              const direction = directionByLine.get(bus.line.toUpperCase())
+
+              return (
+                <li
+                  key={`${stopId}-favorite-${index}`}
+                  className="min-w-0 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-2 py-1.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                      {bus.line}
+                    </span>
+                    <span
+                      className={
+                        isQuickArrival ? "text-sm font-semibold text-emerald-600" : "text-sm font-semibold text-slate-800"
+                      }
+                    >
+                      {bus.minutes}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 truncate text-[10px] text-slate-500">
+                    {formatHeadsign(direction?.headSign) ?? "Sin destino"}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="text-[11px] text-slate-500">Sin tiempos disponibles</p>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={variant === "compact" ? "mt-1" : "mt-2"}>
       {variant === "default" && <h4 className="text-sm font-semibold mb-1">Próximos autobuses:</h4>}
       {buses.length > 0 ? (
-        <ul className={variant === "compact" ? "space-y-0.5" : "space-y-1"}>
+        <ul className={variant === "compact" ? "space-y-1" : "space-y-1.5"}>
           {buses.slice(0, variant === "compact" ? 2 : buses.length).map((bus, index) => {
             const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
             const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
             const direction = directionByLine.get(bus.line.toUpperCase())
             const rowClass =
               variant === "compact"
-                ? "text-xs border-b border-gray-100 last:border-b-0 pb-1"
-                : "text-sm border-b border-gray-100 last:border-b-0 pb-1"
+                ? "rounded-xl border border-slate-100 bg-white/80 px-2 py-1.5 text-xs"
+                : "rounded-2xl border border-slate-100 bg-white/80 px-3 py-2 text-sm"
 
             return (
               <li key={`${stopId}-${index}`} className={rowClass}>
@@ -120,7 +171,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
                   <span className={isQuickArrival ? "text-green-600 font-semibold" : "text-gray-700"}>{bus.minutes}</span>
                 </div>
                 {direction && (
-                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                     <span>{direction.arrow}</span>
                     <span>{direction.compassLabel}</span>
                     <span>{direction.relationToCenter}</span>
@@ -134,7 +185,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
         <p className="text-sm text-gray-500">Sin autobuses para esta parada</p>
       )}
       {variant === "default" && (
-        <Button onClick={fetchData} className="mt-2 text-xs py-1 px-2">
+        <Button onClick={fetchData} className="mt-2 rounded-full px-3 py-1 text-xs">
           Actualizar
         </Button>
       )}

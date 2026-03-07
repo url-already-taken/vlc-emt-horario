@@ -34,7 +34,7 @@ interface BusStopListProps {
 }
 
 export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusStopListProps) {
-  const { filteredStops, loading, error, userLocation, routeDirections, heading } = useBusStops()
+  const { filteredStops, loading, error, userLocation, routeDirections } = useBusStops()
   const [favoriteStops, setFavoriteStops] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -92,13 +92,16 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
   const noMatches = Boolean(normalizedQuery && favoriteList.length === 0 && regularList.length === 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {favoriteList.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Paradas favoritas ({favoriteList.length})
-          </h3>
-          <ul className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+        <section className="rounded-[26px] border border-amber-200/70 bg-amber-50/60 p-3 shadow-sm shadow-amber-100/50 sm:p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-amber-950">Paradas favoritas</h3>
+            <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+              {favoriteList.length}
+            </span>
+          </div>
+          <ul className="space-y-2.5">
             {favoriteList.map((stop) => (
               <BusStopItem
                 key={`fav-${stop.stopId}`}
@@ -110,16 +113,17 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
                 compact
                 onToggleFavorite={handleToggleFavorite}
                 directions={routeDirections[stop.stopId]}
-                heading={heading}
               />
             ))}
           </ul>
         </section>
       )}
-      <section className="space-y-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Paradas cercanas ({regularList.length})
-        </h3>
+      <section>
+        {favoriteList.length > 0 && (
+          <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Paradas cercanas
+          </div>
+        )}
         <ul className="space-y-3">
           {regularList.length > 0 &&
             regularList.map((stop) => (
@@ -132,16 +136,17 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
                 isFavorite={Boolean(favoriteStops[stop.stopId])}
                 onToggleFavorite={handleToggleFavorite}
                 directions={routeDirections[stop.stopId]}
-                heading={heading}
               />
             ))}
           {noMatches && (
-            <li className="text-sm text-slate-500">
+            <li className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-sm text-slate-500">
               No encontramos paradas que coincidan con "{searchQuery}".
             </li>
           )}
           {!noMatches && regularList.length === 0 && favoriteList.length === 0 && (
-            <li>No hay paradas disponibles</li>
+            <li className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-sm text-slate-500">
+              No hay paradas disponibles
+            </li>
           )}
         </ul>
       </section>

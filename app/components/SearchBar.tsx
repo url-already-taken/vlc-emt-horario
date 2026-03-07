@@ -14,16 +14,18 @@ export default function SearchBar({ query, onQueryChange, onSearch }: SearchBarP
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 mb-2">
+    <form onSubmit={handleSubmit} className="mb-3 flex gap-2">
       <Input
         type="text"
         placeholder="Busca por calle o código..."
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
-        className="w-full bg-white"
+        className="h-10 w-full rounded-xl border-slate-200 bg-white/90 shadow-sm placeholder:text-slate-400"
         aria-label="Buscar parada por nombre o código"
       />
-      <Button type="submit" variant="outline" className="hidden sm:inline-flex">Buscar</Button>
+      <Button type="submit" variant="outline" className="hidden rounded-xl border-slate-200 bg-white/90 sm:inline-flex">
+        Buscar
+      </Button>
     </form>
   )
 }
