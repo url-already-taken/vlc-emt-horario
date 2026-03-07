@@ -94,14 +94,14 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
   return (
     <div className="space-y-5">
       {favoriteList.length > 0 && (
-        <section className="rounded-[26px] border border-amber-200/70 bg-amber-50/60 p-3 shadow-sm shadow-amber-100/50 sm:p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-amber-950">Paradas favoritas</h3>
-            <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+        <section className="rounded-[24px] border border-amber-200/70 bg-amber-50/60 p-2.5 shadow-sm shadow-amber-100/40 sm:p-3">
+          <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-900">Favoritas</h3>
+            <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-amber-700">
               {favoriteList.length}
             </span>
           </div>
-          <ul className="space-y-2.5">
+          <ul className="divide-y divide-amber-200/70">
             {favoriteList.map((stop) => (
               <BusStopItem
                 key={`fav-${stop.stopId}`}

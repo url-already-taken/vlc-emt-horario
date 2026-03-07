@@ -59,36 +59,28 @@ export default function BusStopItem({
 
   if (compact) {
     return (
-      <li
-        ref={ref}
-        className="rounded-2xl border border-amber-200/70 bg-white/95 px-3 py-2.5 shadow-sm shadow-amber-100/60"
-      >
-        <div className="flex items-start justify-between gap-2">
+      <li ref={ref} className="py-1.5 first:pt-0 last:pb-0">
+        <div className="flex items-center gap-2">
           <button type="button" onClick={() => onSelectStop(stop)} className="min-w-0 flex-1 text-left">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-sm font-semibold text-slate-900">{stopLabel}</span>
-              <span className="rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
-                ★
-              </span>
-            </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+            <div className="truncate text-[13px] font-semibold leading-4 text-slate-900">{stopLabel}</div>
+            <div className="mt-0.5 flex items-center gap-1 text-[10px] leading-3 text-slate-500">
               <span className="font-medium text-slate-700">#{stop.stopId}</span>
               <span className="text-slate-300">•</span>
               <span className="truncate">{distanceSummary}</span>
             </div>
           </button>
+          {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="favorite" />}
           <Button
             type="button"
             onClick={() => onToggleFavorite(stop.stopId)}
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="h-7 w-7 rounded-full border-slate-200 bg-white px-0 text-xs text-slate-500"
+            className="h-6 w-6 shrink-0 rounded-full px-0 text-[11px] text-slate-400 hover:bg-white/80 hover:text-slate-700"
             aria-label="Eliminar de favoritos"
           >
             ✕
           </Button>
         </div>
-        {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="favorite" />}
       </li>
     )
   }

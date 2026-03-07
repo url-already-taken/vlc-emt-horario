@@ -83,53 +83,46 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
 
   if (loading) {
     return (
-      <div className={variant === "favorite" ? "mt-2 text-[11px] text-slate-400" : "text-sm text-slate-500"}>
+      <div className={variant === "favorite" ? "text-[10px] text-slate-400" : "text-sm text-slate-500"}>
         Cargando llegadas...
       </div>
     )
   }
   if (error) {
     return (
-      <div className={variant === "favorite" ? "mt-2 text-[11px] text-red-500" : "text-sm text-red-600"}>{error}</div>
+      <div className={variant === "favorite" ? "text-[10px] text-red-500" : "text-sm text-red-600"}>{error}</div>
     )
   }
 
   if (variant === "favorite") {
     return (
-      <div className="mt-2">
+      <div className="ml-auto shrink-0">
         {buses.length > 0 ? (
-          <ul className="grid grid-cols-2 gap-1.5">
-            {buses.slice(0, 2).map((bus, index) => {
+          <ul className="flex max-w-[10.5rem] flex-wrap justify-end gap-1">
+            {buses.slice(0, 3).map((bus, index) => {
               const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
               const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
               const direction = directionByLine.get(bus.line.toUpperCase())
+              const label = formatCompactMinutes(bus.minutes)
 
               return (
                 <li
                   key={`${stopId}-favorite-${index}`}
-                  className="min-w-0 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-2 py-1.5"
+                  className={
+                    isQuickArrival
+                      ? "inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-1 text-[10px] font-semibold leading-none text-emerald-700"
+                      : "inline-flex items-center gap-1 rounded-full bg-slate-900 px-1.5 py-1 text-[10px] font-semibold leading-none text-white"
+                  }
+                  title={formatHeadsign(direction?.headSign) ?? bus.line}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
-                      {bus.line}
-                    </span>
-                    <span
-                      className={
-                        isQuickArrival ? "text-sm font-semibold text-emerald-600" : "text-sm font-semibold text-slate-800"
-                      }
-                    >
-                      {bus.minutes}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 truncate text-[10px] text-slate-500">
-                    {formatHeadsign(direction?.headSign) ?? "Sin destino"}
-                  </div>
+                  <span className={isQuickArrival ? "text-emerald-700/80" : "text-white/70"}>{bus.line}</span>
+                  <span>{label}</span>
                 </li>
               )
             })}
           </ul>
         ) : (
-          <p className="text-[11px] text-slate-500">Sin tiempos disponibles</p>
+          <p className="text-[10px] font-medium text-slate-400">--</p>
         )}
       </div>
     )
@@ -199,4 +192,17 @@ function formatHeadsign(headsign?: string): string | undefined {
     return headsign.split(" - ")[1]
   }
   return headsign
+}
+
+function formatCompactMinutes(minutes: string): string {
+  if (minutes.toLowerCase().includes("pròxim") || minutes.toLowerCase().includes("proxim")) {
+    return "0m"
+  }
+
+  const parsedMinutes = Number.parseInt(minutes, 10)
+  if (!Number.isNaN(parsedMinutes)) {
+    return `${parsedMinutes}m`
+  }
+
+  return minutes
 }
