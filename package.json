@@ -7,10 +7,10 @@
     "clean:next:build": "node -e \"require('node:fs').rmSync('.next/build', { recursive: true, force: true })\"",
     "clean:next:dev": "node -e \"require('node:fs').rmSync('.next/dev', { recursive: true, force: true })\"",
     "dev": "next dev",
+    "dev:clean": "npm run clean:next:dev && next dev",
     "build": "next build",
     "build:minimap-data": "node scripts/build-mini-map-data.mjs",
     "prebuild": "npm run clean:next:build",
-    "predev": "npm run clean:next:dev",
     "start": "next start",
     "lint": "next lint"
   },

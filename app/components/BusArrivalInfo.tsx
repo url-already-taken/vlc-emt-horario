@@ -106,8 +106,8 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
               const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
               const direction = directionByLine.get(bus.line.toUpperCase())
               const label = formatCompactMinutes(bus.minutes)
-              const lineClass = isQuickArrival ? "bg-emerald-700 text-white" : "bg-slate-950 text-white"
-              const etaClass = isQuickArrival ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-700"
+              const lineClass = isQuickArrival ? "bg-emerald-700 text-white" : "bg-red-600 text-white"
+              const etaClass = isQuickArrival ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"
 
               return (
                 <li
@@ -150,8 +150,8 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
 
             return (
               <li key={`${stopId}-${index}`} className={rowClass}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span
                       className={
                         variant === "compact"
@@ -167,10 +167,14 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
                       </div>
                     </div>
                   </div>
-                  <span className={isQuickArrival ? "text-green-600 font-semibold" : "text-gray-700"}>{bus.minutes}</span>
+                  <span
+                    className={`shrink-0 whitespace-nowrap ${isQuickArrival ? "font-semibold text-green-600" : "text-gray-700"}`}
+                  >
+                    {bus.minutes}
+                  </span>
                 </div>
                 {direction && (
-                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
                     <span>{direction.arrow}</span>
                     <span>{direction.compassLabel}</span>
                     <span>{direction.relationToCenter}</span>

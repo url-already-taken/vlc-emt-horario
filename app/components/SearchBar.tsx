@@ -20,7 +20,7 @@ export default function SearchBar({ query, onQueryChange, onSearch }: SearchBarP
         placeholder="Busca por calle o código..."
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
-        className="h-10 w-full rounded-xl border-slate-200 bg-white/90 shadow-sm placeholder:text-slate-400"
+        className="min-w-0 flex-1 rounded-xl border-slate-200 bg-white/90 shadow-sm placeholder:text-slate-400"
         aria-label="Buscar parada por nombre o código"
       />
       <Button type="submit" variant="outline" className="hidden rounded-xl border-slate-200 bg-white/90 sm:inline-flex">

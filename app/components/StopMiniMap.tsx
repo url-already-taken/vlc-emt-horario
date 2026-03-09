@@ -45,7 +45,7 @@ export default function StopMiniMap({ lat, lon, stopName, userLocation = null }:
           {userLocation && <div className="text-[11px] text-slate-400">Rojo: parada. Azul: tu posición.</div>}
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex flex-wrap justify-end gap-1">
           {MAP_SIZES.map((value) => (
             <Button
               key={value}

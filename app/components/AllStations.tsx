@@ -36,14 +36,14 @@ export default function AllStations() {
           placeholder="Filtrar por nombre"
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
-          className="flex-grow"
+          className="min-w-0 flex-1"
         />
         <Input
           type="text"
           placeholder="Filtrar por línea"
           value={routeFilter}
           onChange={(e) => setRouteFilter(e.target.value)}
-          className="flex-grow"
+          className="min-w-0 flex-1"
         />
       </div>
       <div>Total de paradas: {displayedStops.length}</div>

@@ -35,6 +35,14 @@ export default function BusStopItem({
       ? formatDistanceSummary(userLocation.latitude, userLocation.longitude, stop.lat, stop.lon)
       : stop.ubica
 
+  const handleToggleFavorite = () => {
+    if (typeof window !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(50)
+    }
+
+    onToggleFavorite(stop.stopId)
+  }
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -74,10 +82,10 @@ export default function BusStopItem({
           {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="favorite" />}
           <Button
             type="button"
-            onClick={() => onToggleFavorite(stop.stopId)}
+            onClick={handleToggleFavorite}
             variant="ghost"
             size="sm"
-            className="h-6 w-6 shrink-0 rounded-full px-0 text-[11px] text-slate-400 hover:bg-white/80 hover:text-slate-700"
+            className="h-6 w-6 shrink-0 rounded-full px-0 text-[11px] text-slate-400 transition-transform hover:bg-white/80 hover:text-slate-700 active:scale-90"
             aria-label="Eliminar de favoritos"
           >
             ✕
@@ -99,7 +107,7 @@ export default function BusStopItem({
       ref={ref}
       className="group rounded-[28px] border border-slate-200/80 bg-white/90 p-4 shadow-sm shadow-slate-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
         <div className="min-w-0 flex-1">
           <button type="button" onClick={() => onSelectStop(stop)} className="min-w-0 text-left">
             <span className="flex items-center gap-2 font-semibold text-slate-900">
@@ -121,13 +129,13 @@ export default function BusStopItem({
         </div>
         <Button
           type="button"
-          onClick={() => onToggleFavorite(stop.stopId)}
+          onClick={handleToggleFavorite}
           variant={isFavorite ? "default" : "outline"}
           size="sm"
           className={
             isFavorite
-              ? "shrink-0 rounded-full bg-slate-900 px-3 text-xs"
-              : "shrink-0 rounded-full border-slate-200 bg-white/90 px-3 text-xs text-slate-600"
+              ? "shrink-0 rounded-full bg-slate-900 px-3 text-xs transition-transform active:scale-90"
+              : "shrink-0 rounded-full border-slate-200 bg-white/90 px-3 text-xs text-slate-600 transition-transform active:scale-90"
           }
         >
           {isFavorite ? "★ Guardada" : "☆ Favorita"}

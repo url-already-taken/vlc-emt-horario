@@ -255,18 +255,26 @@ function HomeContent() {
     setSearchQuery(value)
   }, [])
 
+  const handleCompassToggle = useCallback((nextState: boolean) => {
+    setShowCompassOverlay(nextState)
+  }, [])
+
+  const handleCompassClose = useCallback(() => {
+    setShowCompassOverlay(false)
+  }, [])
+
   const handleDistanceFilterChange = (value: string) => {
     setDistanceFilter(Number.parseFloat(value))
   }
 
   return (
-    <main className="min-h-screen max-w-4xl mx-auto px-4 py-4 sm:py-6">
+    <main className="mx-auto min-h-screen w-full max-w-4xl overflow-x-hidden px-4 py-4 sm:py-6">
       <header className="mb-4 rounded-[28px] border border-white/80 bg-white/85 px-4 py-4 shadow-sm shadow-slate-200/60 backdrop-blur sm:px-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Valencia EMT</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">ParadaYa</h1>
         <p className="mt-1 text-sm text-slate-500">Paradas cercanas, favoritos y tiempos en una vista más compacta.</p>
       </header>
-      {showCompassOverlay && <CompassOverlay />}
+      {showCompassOverlay && <CompassOverlay onClose={handleCompassClose} />}
       {showAllStations ? (
         <>
           <Button onClick={() => setShowAllStations(false)} variant="outline" className="mb-4 rounded-xl bg-white/90">
@@ -329,7 +337,7 @@ function HomeContent() {
               </div>
               <StopCompass
                 isActive={showCompassOverlay}
-                onToggle={setShowCompassOverlay}
+                onToggle={handleCompassToggle}
               />
               <Button
                 onClick={() => setShowAllStations(true)}
@@ -345,11 +353,7 @@ function HomeContent() {
           {loading && <div className="mt-4">Cargando paradas...</div>}
           {error && !loading && <div className="mt-4 text-red-600">{error}</div>}
           {!loading && !error && (
-            <div
-              className={`transition-opacity duration-300 ${
-                showCompassOverlay ? "opacity-20" : "opacity-100"
-              }`}
-            >
+            <>
               <BusStopList sortBy={sortBy} onSelectStop={setSelectedStop} searchQuery={searchQuery} />
               {selectedStop && (
                 <BusStopDetail
@@ -358,7 +362,7 @@ function HomeContent() {
                   userLocation={userLocation}
                 />
               )}
-            </div>
+            </>
           )}
         </>
       )}

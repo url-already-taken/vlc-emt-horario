@@ -1,355 +1,459 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
-import { useBusStops } from "../../lib/BusStopContext"
-import { deg2rad, distanceKm, getBearing } from "../../lib/geoUtils"
-import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
+import { type ReactNode, useEffect, useMemo } from "react"
+import { Compass, LocateFixed, MapPinned, Navigation, Route, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useBusStops } from "@/lib/BusStopContext"
+import { useDeviceHeading } from "@/hooks/useDeviceHeading"
+import {
+  clamp,
+  distanceKm,
+  getBBoxAroundMeters,
+  getBearing,
+  normalizeDegrees,
+  projectPointToSquare,
+} from "@/lib/geoUtils"
 
-const ROUTE_LINE_COLOR = "rgba(59, 130, 246, 0.65)"
-const ROUTE_LINE_WIDTH = 1.5
-const ROUTE_DASH_PATTERN: number[] = [4, 4]
-const BACKTRACK_RATIO = 0.35
-const BACKTRACK_MAX_PX = 90
-const FORWARD_CLAMP_PX = 150
-const FORWARD_RATIO = 0.55
-const ROUTE_BADGE_RADIUS = 12
-const ROUTE_BADGE_FILL = "#ffffff"
-const ROUTE_BADGE_TEXT = "#1d4ed8"
-const HEADING_SMOOTHING = 0.25
+const MAP_VIEWBOX = 1000
+const MAP_IMAGE_SIZE = 720
+const MAP_MIN_SIDE_METERS = 360
+const MAP_MAX_SIDE_METERS = 900
+const MAP_FALLBACK_SIDE_METERS = 480
+const MAP_PADDING_MULTIPLIER = 2.5
 
-export default function CompassOverlay() {
-  const { nearestStops, userLocation, routeDirections, stops } = useBusStops()
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [heading, setHeading] = useState(0)
+const STOP_ACCENTS = [
+  {
+    fill: "#0f766e",
+    stroke: "#14b8a6",
+    badgeClass: "bg-teal-500 text-white",
+    chipClass: "bg-teal-50 text-teal-800 ring-teal-200",
+  },
+  {
+    fill: "#1d4ed8",
+    stroke: "#60a5fa",
+    badgeClass: "bg-blue-500 text-white",
+    chipClass: "bg-blue-50 text-blue-800 ring-blue-200",
+  },
+  {
+    fill: "#b45309",
+    stroke: "#f59e0b",
+    badgeClass: "bg-amber-500 text-white",
+    chipClass: "bg-amber-50 text-amber-800 ring-amber-200",
+  },
+] as const
+
+interface CompassOverlayProps {
+  onClose: () => void
+}
+
+interface StopSummary {
+  stopId: string
+  name: string
+  location: string
+  distanceMeters: number
+  absoluteBearing: number
+  relativeLabel: string
+  point: {
+    x: number
+    y: number
+  }
+  routeBadges: string[]
+}
+
+export default function CompassOverlay({ onClose }: CompassOverlayProps) {
+  const { nearestStops, routeDirections, userLocation } = useBusStops()
+  const { heading, hasSignal, isSupported } = useDeviceHeading(true)
 
   useEffect(() => {
-    const orientationEvent = getOrientationEventName()
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
 
-    function handleOrientation(event: DeviceOrientationEvent) {
-      const nextHeading = deriveHeading(event)
-      if (nextHeading == null) return
-      setHeading((prev) => smoothHeading(prev, nextHeading))
-    }
-
-    function subscribe() {
-      window.addEventListener(orientationEvent, handleOrientation as EventListener)
-    }
-
-    function unsubscribe() {
-      window.removeEventListener(orientationEvent, handleOrientation as EventListener)
-    }
-
-    function requestPermissionIfNeeded() {
-      if (
-        typeof DeviceOrientationEvent !== "undefined" &&
-        typeof (DeviceOrientationEvent as any).requestPermission === "function"
-      ) {
-        ;(DeviceOrientationEvent as any)
-          .requestPermission()
-          .then((perm: PermissionState) => {
-            if (perm === "granted") {
-              subscribe()
-            }
-          })
-          .catch(console.error)
-      } else {
-        subscribe()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose()
       }
     }
 
-    requestPermissionIfNeeded()
+    window.addEventListener("keydown", handleKeyDown)
 
     return () => {
-      unsubscribe()
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [])
+  }, [onClose])
 
-  useEffect(() => {
-    drawCanvas()
-  }, [heading, nearestStops, userLocation, routeDirections, stops])
+  const overlayData = useMemo(() => {
+    if (!userLocation) return null
 
-  function drawCanvas() {
-    const canvas = canvasRef.current
-    if (!canvas || !userLocation) return
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const stopsWithMetrics = nearestStops.map((stop) => {
+      const distanceMeters = distanceKm(userLocation.latitude, userLocation.longitude, stop.lat, stop.lon) * 1000
+      const absoluteBearing = normalizeDegrees(getBearing(userLocation.latitude, userLocation.longitude, stop.lat, stop.lon))
+      const relativeBearing = normalizeDegrees(absoluteBearing - heading)
+      const uniqueRoutes = Array.from(
+        new Map(
+          (routeDirections[stop.stopId] ?? []).map((direction) => [
+            direction.lineId,
+            direction.lineShortName || direction.lineId,
+          ]),
+        ).values(),
+      ).slice(0, 4)
 
-    const { width, height } = canvas
-    ctx.clearRect(0, 0, width, height)
-
-    ctx.save()
-    ctx.translate(width / 2, height / 2)
-    // Поворачиваем canvas в обратную сторону, чтобы "север" был всегда сверху.
-    ctx.rotate(-heading * (Math.PI / 180))
-
-    // Рисуем "я" в центре
-    ctx.beginPath()
-    ctx.arc(0, 0, 6, 0, 2 * Math.PI)
-    ctx.fillStyle = "blue"
-    ctx.fill()
-
-    const scalePxPerKm = 1000 // Увеличиваем масштаб для лучшей видимости
-    const userLat = userLocation.latitude
-    const userLon = userLocation.longitude
-    const stopLookup = new Map<string, BusStop>(stops.map((stop) => [stop.stopId, stop]))
-
-    const projectPoint = (lat: number, lon: number) => {
-      const distKm = distanceKm(userLat, userLon, lat, lon)
-      const bearing = getBearing(userLat, userLon, lat, lon)
-      const adjustedBearing = (bearing - heading + 360) % 360
-      const angleRad = deg2rad(adjustedBearing)
-      const r = distKm * scalePxPerKm
-      const x = r * Math.sin(angleRad)
-      const y = -r * Math.cos(angleRad)
-      return { x, y }
-    }
-
-    nearestStops.forEach((stop) => {
-      // Проверяем, что координаты остановки - числа
-      const stopLat = Number(stop.lat)
-      const stopLon = Number(stop.lon)
-      
-      // Вычисляем расстояние и азимут
-      const { x, y } = projectPoint(stopLat, stopLon)
-
-      // Отрисовываем только видимые в текущем масштабе точки
-      if (Math.abs(x) < width / 2 && Math.abs(y) < height / 2) {
-        drawDirectionLines(ctx, {
-          stopX: x,
-          stopY: y,
-          projectPoint,
-          stopLookup,
-          directions: routeDirections?.[stop.stopId] ?? [],
-        })
-
-        ctx.beginPath()
-        ctx.arc(x, y, 8, 0, 2 * Math.PI)
-        ctx.fillStyle = "#ff4757"
-        ctx.fill()
-
-        // Добавляем текст с названием остановки
-        ctx.font = "14px Arial"
-        ctx.fillStyle = "black"
-        ctx.textAlign = "center"
-        ctx.fillText(formatStopName(stop.name), x, y - 12)
+      return {
+        stopId: stop.stopId,
+        name: formatStopName(stop.name),
+        location: stop.ubica,
+        distanceMeters,
+        absoluteBearing,
+        relativeLabel: relativeBearingToLabel(relativeBearing),
+        lat: stop.lat,
+        lon: stop.lon,
+        routeBadges: uniqueRoutes,
       }
     })
 
-    ctx.restore()
-  }
+    const farthestStopMeters = stopsWithMetrics.reduce((maxDistance, stop) => {
+      return Math.max(maxDistance, stop.distanceMeters)
+    }, 0)
 
-  function formatStopName(name?: string): string {
-    if (!name) return ""
-    if (name.includes(" - ")) {
-      return name.split(" - ")[1]
-    }
-    return name
-  }
+    const mapSideMeters = clamp(
+      Math.ceil(Math.max(MAP_FALLBACK_SIDE_METERS, farthestStopMeters * MAP_PADDING_MULTIPLIER) / 20) * 20,
+      MAP_MIN_SIDE_METERS,
+      MAP_MAX_SIDE_METERS,
+    )
 
-  function handleResize() {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-    drawCanvas()
-  }
+    const bbox = getBBoxAroundMeters(userLocation.latitude, userLocation.longitude, mapSideMeters / 2)
 
-  useEffect(() => {
-    handleResize()
-    window.addEventListener("resize", handleResize)
-    return () => {
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [])
+    const stopSummaries: StopSummary[] = stopsWithMetrics.map((stop) => {
+      const projectedPoint = projectPointToSquare(stop.lat, stop.lon, bbox, MAP_VIEWBOX)
 
-  function drawDirectionLines(
-    ctx: CanvasRenderingContext2D,
-    {
-      directions,
-      stopX,
-      stopY,
-      projectPoint,
-      stopLookup,
-    }: {
-      directions: RouteDirectionInfo[]
-      stopX: number
-      stopY: number
-      projectPoint: (lat: number, lon: number) => { x: number; y: number }
-      stopLookup: Map<string, BusStop>
-    },
-  ) {
-    if (!directions?.length) return
-
-    directions.forEach((direction) => {
-      const neighbor = stopLookup.get(direction.neighborStopId)
-      if (!neighbor) return
-
-      const neighborPoint = projectPoint(neighbor.lat, neighbor.lon)
-      if (!neighborPoint) return
-
-      const forwardVector = {
-        x: neighborPoint.x - stopX,
-        y: neighborPoint.y - stopY,
+      return {
+        stopId: stop.stopId,
+        name: stop.name,
+        location: stop.location,
+        distanceMeters: stop.distanceMeters,
+        absoluteBearing: stop.absoluteBearing,
+        relativeLabel: stop.relativeLabel,
+        point: {
+          x: clamp(projectedPoint.x, 72, MAP_VIEWBOX - 72),
+          y: clamp(projectedPoint.y, 72, MAP_VIEWBOX - 72),
+        },
+        routeBadges: stop.routeBadges,
       }
-      const forwardLength = Math.hypot(forwardVector.x, forwardVector.y)
-      if (forwardLength === 0) return
-
-      const unitX = forwardVector.x / forwardLength
-      const unitY = forwardVector.y / forwardLength
-      const effectiveForwardLength = Math.min(forwardLength * FORWARD_RATIO, FORWARD_CLAMP_PX)
-      const scaledVector = {
-        x: unitX * effectiveForwardLength,
-        y: unitY * effectiveForwardLength,
-      }
-      const lineEnd = {
-        x: stopX + scaledVector.x,
-        y: stopY + scaledVector.y,
-      }
-      const backtrackLength = Math.min(effectiveForwardLength * BACKTRACK_RATIO, BACKTRACK_MAX_PX)
-      const backwardPoint = {
-        x: stopX - unitX * backtrackLength,
-        y: stopY - unitY * backtrackLength,
-      }
-      const badgeOffset = Math.min(8, effectiveForwardLength * 0.15)
-      const badgePoint = {
-        x: lineEnd.x + unitX * badgeOffset,
-        y: lineEnd.y + unitY * badgeOffset,
-      }
-
-      ctx.save()
-      ctx.beginPath()
-      ctx.moveTo(backwardPoint.x, backwardPoint.y)
-      ctx.lineTo(stopX, stopY)
-      ctx.lineTo(lineEnd.x, lineEnd.y)
-      ctx.strokeStyle = ROUTE_LINE_COLOR
-      ctx.lineWidth = ROUTE_LINE_WIDTH
-      ctx.setLineDash(ROUTE_DASH_PATTERN)
-      ctx.stroke()
-      ctx.restore()
-
-      // точка в начале сегмента
-      ctx.beginPath()
-      ctx.arc(backwardPoint.x, backwardPoint.y, 3, 0, 2 * Math.PI)
-      ctx.fillStyle = ROUTE_LINE_COLOR
-      ctx.fill()
-
-      drawRouteBadge(ctx, {
-        centerX: badgePoint.x,
-        centerY: badgePoint.y,
-        label: direction.lineShortName || direction.lineId,
-      })
     })
-  }
 
-  function drawRouteBadge(
-    ctx: CanvasRenderingContext2D,
-    {
-      centerX,
-      centerY,
-      label,
-    }: {
-      centerX: number
-      centerY: number
-      label: string
-    },
-  ) {
-    const text = label?.slice(0, 3) || "?"
+    return {
+      mapSideMeters,
+      stopSummaries,
+    }
+  }, [heading, nearestStops, routeDirections, userLocation])
 
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, ROUTE_BADGE_RADIUS, 0, 2 * Math.PI)
-    ctx.fillStyle = ROUTE_BADGE_FILL
-    ctx.fill()
-    ctx.lineWidth = 1.5
-    ctx.strokeStyle = ROUTE_LINE_COLOR
-    ctx.stroke()
+  const mapSrc = useMemo(() => {
+    if (!userLocation || !overlayData) return ""
 
-    ctx.font = "10px Inter, system-ui, sans-serif"
-    ctx.fillStyle = ROUTE_BADGE_TEXT
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText(text, centerX, centerY)
-  }
+    const params = new URLSearchParams({
+      lat: String(userLocation.latitude),
+      lon: String(userLocation.longitude),
+      side: String(overlayData.mapSideMeters),
+      px: String(MAP_IMAGE_SIZE),
+      center: "none",
+    })
+
+    return `/api/mini-map?${params.toString()}`
+  }, [overlayData, userLocation])
+
+  const headingLabel = hasSignal ? `${Math.round(heading)}° ${bearingToCompassLabel(heading)}` : "Calibrando"
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        pointerEvents: "none",
-        zIndex: 9999,
-      }}
-    />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/45 backdrop-blur-md" onClick={onClose}>
+      <div className="min-h-full p-3 sm:p-6">
+        <section
+          className="mx-auto max-w-6xl rounded-[36px] border border-white/60 bg-white/80 p-4 shadow-2xl shadow-slate-950/20 backdrop-blur-xl sm:p-6"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">Modo brújula</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                Mapa estable con rumbo en vivo
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                La flecha sigue el teléfono con suavizado. El mapa se queda quieto para que las paradas no bailen cada
+                vez que gires la mano.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <StatusChip icon={<Navigation className="h-3.5 w-3.5" />} label={headingLabel} />
+              <StatusChip
+                icon={<Compass className="h-3.5 w-3.5" />}
+                label={isSupported ? (hasSignal ? "Sensor activo" : "Buscando señal") : "Sin sensor"}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full border-white/70 bg-white/90"
+                onClick={onClose}
+                aria-label="Cerrar brújula"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {!userLocation ? (
+            <div className="mt-6 rounded-[32px] border border-dashed border-slate-300 bg-slate-50/90 p-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white">
+                <LocateFixed className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-900">Activa tu ubicación para usar esta vista</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                La brújula necesita tu posición para centrar el mapa y colocarte respecto a las paradas cercanas.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+              <div className="space-y-4">
+                <div className="rounded-[32px] border border-white/70 bg-slate-950/95 p-3 shadow-xl shadow-slate-900/20">
+                  <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-slate-900">
+                    <img
+                      src={mapSrc}
+                      alt="Mapa de las paradas más cercanas"
+                      className="block w-full"
+                      draggable={false}
+                    />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.02),rgba(15,23,42,0.32))]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_35%,rgba(15,23,42,0.18))]" />
+                    <CompassMapOverlay
+                      hasSignal={hasSignal}
+                      heading={heading}
+                      stops={overlayData?.stopSummaries ?? []}
+                    />
+                    <div className="pointer-events-none absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/85">
+                      <span className="rounded-full bg-slate-950/55 px-3 py-1 backdrop-blur">Norte fijo</span>
+                      <span className="rounded-full bg-slate-950/55 px-3 py-1 backdrop-blur">
+                        {overlayData?.mapSideMeters ?? MAP_FALLBACK_SIDE_METERS} m
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                    <LegendDot color="bg-slate-900" label="Tu posición" />
+                    <LegendDot color="bg-teal-500" label="Parada 1" />
+                    <LegendDot color="bg-blue-500" label="Parada 2" />
+                    <LegendDot color="bg-amber-500" label="Parada 3" />
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">
+                    Los números del mapa coinciden con las tarjetas de la derecha. La frase “delante”, “derecha” o
+                    “espalda” se calcula según cómo tengas orientado el móvil ahora mismo.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    <MapPinned className="h-4 w-4" />
+                    Paradas cercanas
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Vista rápida para moverte a pie sin el overlay antiguo de puntos flotando.
+                  </p>
+                </div>
+
+                {(overlayData?.stopSummaries ?? []).length > 0 ? (
+                  (overlayData?.stopSummaries ?? []).map((stop, index) => {
+                    const accent = STOP_ACCENTS[index % STOP_ACCENTS.length]
+
+                    return (
+                      <article
+                        key={stop.stopId}
+                        className="rounded-[28px] border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${accent.badgeClass}`}
+                              >
+                                {index + 1}
+                              </span>
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                parada cercana
+                              </span>
+                            </div>
+                            <h3 className="mt-2 truncate text-base font-semibold text-slate-950">{stop.name}</h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                              #{stop.stopId} · {stop.location}
+                            </p>
+                          </div>
+
+                          <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
+                            {formatDistance(stop.distanceMeters)}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${accent.chipClass}`}
+                          >
+                            {stop.relativeLabel}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                            Azimut {Math.round(stop.absoluteBearing)}°
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {stop.routeBadges.length ? (
+                            stop.routeBadges.map((route) => (
+                              <span
+                                key={`${stop.stopId}-${route}`}
+                                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700"
+                              >
+                                <Route className="h-3 w-3" />
+                                {route}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400">Sin líneas detectadas para esta parada.</span>
+                          )}
+                        </div>
+                      </article>
+                    )
+                  })
+                ) : (
+                  <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50/90 p-6 text-sm text-slate-600">
+                    No hay paradas cercanas dentro del filtro actual.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
   )
 }
 
-function getOrientationEventName(): "deviceorientation" | "deviceorientationabsolute" {
-  if (typeof window !== "undefined" && "ondeviceorientationabsolute" in window) {
-    return "deviceorientationabsolute"
+function CompassMapOverlay({
+  heading,
+  hasSignal,
+  stops,
+}: {
+  heading: number
+  hasSignal: boolean
+  stops: StopSummary[]
+}) {
+  const center = MAP_VIEWBOX / 2
+
+  return (
+    <svg viewBox={`0 0 ${MAP_VIEWBOX} ${MAP_VIEWBOX}`} className="pointer-events-none absolute inset-0 h-full w-full">
+      <defs>
+        <linearGradient id="headingBeam" x1="500" y1="500" x2="500" y2="72" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+          <stop offset="68%" stopColor="rgba(255,255,255,0.16)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0.62)" />
+        </linearGradient>
+      </defs>
+
+      {stops.map((stop, index) => {
+        const accent = STOP_ACCENTS[index % STOP_ACCENTS.length]
+
+        return (
+          <g key={stop.stopId}>
+            <line
+              x1={center}
+              y1={center}
+              x2={stop.point.x}
+              y2={stop.point.y}
+              stroke={accent.stroke}
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray="18 18"
+              opacity="0.72"
+            />
+            <circle cx={stop.point.x} cy={stop.point.y} r="34" fill="rgba(255,255,255,0.18)" />
+            <circle cx={stop.point.x} cy={stop.point.y} r="27" fill={accent.fill} stroke="white" strokeWidth="8" />
+            <text
+              x={stop.point.x}
+              y={stop.point.y + 1}
+              fill="white"
+              fontSize="28"
+              fontWeight="700"
+              textAnchor="middle"
+              dominantBaseline="central"
+            >
+              {index + 1}
+            </text>
+          </g>
+        )
+      })}
+
+      <g transform={`rotate(${hasSignal ? heading : 0} ${center} ${center})`} opacity={hasSignal ? 1 : 0.4}>
+        <path d="M500 500 L415 130 Q500 56 585 130 Z" fill="url(#headingBeam)" />
+        <path d="M500 86 L466 160 H534 Z" fill="#ffffff" stroke="#0f172a" strokeWidth="6" strokeLinejoin="round" />
+      </g>
+
+      <circle cx={center} cy={center} r="42" fill="#0f172a" fillOpacity="0.92" stroke="white" strokeWidth="10" />
+      <circle cx={center} cy={center} r="68" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="10" />
+      <text x={center} y={center + 3} fill="white" fontSize="22" fontWeight="700" textAnchor="middle">
+        TU
+      </text>
+    </svg>
+  )
+}
+
+function StatusChip({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <span className="inline-flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white/85 px-3 text-xs font-medium text-slate-700 shadow-sm">
+      {icon}
+      {label}
+    </span>
+  )
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100/80 px-2.5 py-1">
+      <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
+      {label}
+    </span>
+  )
+}
+
+function formatStopName(name: string) {
+  if (name.includes(" - ")) {
+    return name.split(" - ")[1]
   }
-  return "deviceorientation"
+
+  return name
 }
 
-function deriveHeading(event: DeviceOrientationEvent): number | null {
-  let heading: number | null = null
-
-  if (typeof (event as any).webkitCompassHeading === "number") {
-    heading = (event as any).webkitCompassHeading
-  } else if (
-    typeof event.alpha === "number" &&
-    typeof event.beta === "number" &&
-    typeof event.gamma === "number"
-  ) {
-    heading = calculateCompassHeading(event.alpha, event.beta, event.gamma)
-  } else if (typeof event.alpha === "number") {
-    heading = 360 - event.alpha
+function formatDistance(distanceMeters: number) {
+  if (distanceMeters < 1000) {
+    return `${Math.round(distanceMeters)} m`
   }
 
-  if (heading == null || Number.isNaN(heading)) return null
-  return normalizeHeading(applyScreenOrientation(heading))
+  return `${(distanceMeters / 1000).toFixed(2)} km`
 }
 
-function calculateCompassHeading(alpha: number, beta: number, gamma: number): number {
-  const alphaRad = deg2rad(alpha)
-  const betaRad = deg2rad(beta)
-  const gammaRad = deg2rad(gamma)
-
-  const cA = Math.cos(alphaRad)
-  const sA = Math.sin(alphaRad)
-  const cB = Math.cos(betaRad)
-  const sB = Math.sin(betaRad)
-  const cG = Math.cos(gammaRad)
-  const sG = Math.sin(gammaRad)
-
-  const rA = -cA * sG - sA * sB * cG
-  const rB = -sA * sG + cA * sB * cG
-  let heading = Math.atan2(rA, rB)
-
-  if (heading < 0) {
-    heading += 2 * Math.PI
-  }
-
-  return (heading * 180) / Math.PI
+function bearingToCompassLabel(bearing: number) {
+  const segments = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
+  return segments[Math.round(normalizeDegrees(bearing) / 45) % segments.length]
 }
 
-function applyScreenOrientation(heading: number): number {
-  if (typeof window === "undefined") return heading
-  const angle = window.screen?.orientation?.angle ?? (window as any).orientation ?? 0
-  return heading + angle
-}
+function relativeBearingToLabel(relativeBearing: number) {
+  const normalized = normalizeDegrees(relativeBearing)
 
-function normalizeHeading(value: number): number {
-  const normalized = value % 360
-  return normalized < 0 ? normalized + 360 : normalized
-}
-
-function smoothHeading(previous: number, next: number): number {
-  if (!Number.isFinite(previous)) return next
-  const diff = shortestAngleDiff(previous, next)
-  return normalizeHeading(previous + diff * HEADING_SMOOTHING)
-}
-
-function shortestAngleDiff(from: number, to: number): number {
-  return ((to - from + 540) % 360) - 180
+  if (normalized >= 337.5 || normalized < 22.5) return "De frente"
+  if (normalized < 67.5) return "Delante a la derecha"
+  if (normalized < 112.5) return "A tu derecha"
+  if (normalized < 157.5) return "Detrás a la derecha"
+  if (normalized < 202.5) return "A tu espalda"
+  if (normalized < 247.5) return "Detrás a la izquierda"
+  if (normalized < 292.5) return "A tu izquierda"
+  return "Delante a la izquierda"
 }

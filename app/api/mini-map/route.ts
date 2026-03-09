@@ -1,5 +1,6 @@
 import fs from "node:fs/promises"
 import path from "node:path"
+import { clamp, getBBoxAroundMeters } from "@/lib/geoUtils"
 
 export const dynamic = "force-dynamic"
 
@@ -48,16 +49,6 @@ function loadLayer(name: "buildings" | "streets") {
       })
   }
   return cache[name]
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}
-
-function getBBoxAround(lat: number, lon: number, halfMeters: number): BBox {
-  const latDelta = halfMeters / 111320
-  const lonDelta = halfMeters / (111320 * Math.cos((lat * Math.PI) / 180))
-  return [lon - lonDelta, lat - latDelta, lon + lonDelta, lat + latDelta]
 }
 
 function bboxIntersects(a: BBox, b: BBox) {
@@ -150,24 +141,23 @@ function normalizeAngle(angle: number) {
 }
 
 function pickStreetLabels(features: StoredFeature[], bbox: BBox, size: number, sideMeters: number) {
-  const labels: Array<{ name: string; x: number; y: number; angle: number; textLength: number }> = []
-  const seenNames = new Set<string>()
-  const maxLabels = sideMeters <= 250 ? 10 : sideMeters <= 500 ? 12 : 15
-  const overlapDistance = sideMeters <= 250 ? 24 : sideMeters <= 500 ? 22 : 20
+  const labels: Array<{ name: string; x: number; y: number; angle: number; textLength: number; fontSize: number }> = []
+  const maxLabels = sideMeters <= 250 ? 12 : sideMeters <= 500 ? 14 : 18
 
-  const candidates = features
+  const streetGroups = features
     .map((feature) => {
       const rawName = feature.properties.name?.trim()
       if (!rawName) return null
 
       const name = toDisplayStreetName(rawName)
-      const minSegmentLength = Math.max(18, Math.min(34, name.length * 3.1))
+      const minSegmentLength = Math.max(14, Math.min(30, name.length * 2.4))
       const segmentCandidates: Array<{
         name: string
         x: number
         y: number
         angle: number
         textLength: number
+        fontSize: number
         priority: number
       }> = []
 
@@ -186,15 +176,18 @@ function pickStreetLabels(features: StoredFeature[], bbox: BBox, size: number, s
           const midX = (x1 + x2) / 2
           const midY = (y1 + y2) / 2
 
-          if (midX < 30 || midX > size - 30 || midY < 24 || midY > size - 24) continue
+          if (midX < 22 || midX > size - 22 || midY < 20 || midY > size - 20) continue
 
-          const textLength = Math.max(20, Math.min(segmentLength - 6, 82))
+          const textLength = Math.max(18, Math.min(segmentLength - 4, 88))
+          const fontSize = Math.max(5.6, Math.min(7.4, textLength / Math.max(name.length * 0.72, 1)))
+
           segmentCandidates.push({
             name,
             x: Number(midX.toFixed(1)),
             y: Number(midY.toFixed(1)),
             angle: Number(normalizeAngle((Math.atan2(dy, dx) * 180) / Math.PI).toFixed(1)),
             textLength: Number(textLength.toFixed(1)),
+            fontSize: Number(fontSize.toFixed(1)),
             priority: segmentLength,
           })
         }
@@ -202,24 +195,75 @@ function pickStreetLabels(features: StoredFeature[], bbox: BBox, size: number, s
 
       if (!segmentCandidates.length) return null
 
-      return segmentCandidates.sort((a, b) => b.priority - a.priority)[0]
+      return {
+        name,
+        candidates: segmentCandidates.sort((a, b) => b.priority - a.priority).slice(0, 4),
+        priority: Math.max(...segmentCandidates.map((candidate) => candidate.priority)),
+      }
     })
     .filter(
       (
-        candidate,
-      ): candidate is { name: string; x: number; y: number; angle: number; textLength: number; priority: number } =>
-        candidate !== null,
+        street,
+      ): street is {
+        name: string
+        candidates: Array<{
+          name: string
+          x: number
+          y: number
+          angle: number
+          textLength: number
+          fontSize: number
+          priority: number
+        }>
+        priority: number
+      } => street !== null,
     )
-    .sort((a, b) => b.priority - a.priority)
 
-  for (const candidate of candidates) {
-    if (seenNames.has(candidate.name)) continue
+  const streets = [...streetGroups.reduce((acc, street) => {
+    const existing = acc.get(street.name)
 
-    const overlaps = labels.some((label) => Math.hypot(label.x - candidate.x, label.y - candidate.y) < overlapDistance)
-    if (overlaps) continue
+    if (!existing) {
+      acc.set(street.name, {
+        name: street.name,
+        candidates: [...street.candidates],
+        priority: street.priority,
+      })
+      return acc
+    }
 
-    labels.push(candidate)
-    seenNames.add(candidate.name)
+    existing.candidates.push(...street.candidates)
+    existing.priority = Math.max(existing.priority, street.priority)
+    existing.candidates.sort((a, b) => b.priority - a.priority)
+    existing.candidates = existing.candidates.slice(0, 6)
+
+    return acc
+  }, new Map<string, {
+    name: string
+    candidates: Array<{
+      name: string
+      x: number
+      y: number
+      angle: number
+      textLength: number
+      fontSize: number
+      priority: number
+    }>
+    priority: number
+  }>()).values()].sort((a, b) => b.priority - a.priority)
+
+  for (const street of streets) {
+    const fittingCandidate = street.candidates.find((candidate) => {
+      const candidateRadius = Math.max(9, candidate.textLength * 0.34)
+
+      return !labels.some((label) => {
+        const labelRadius = Math.max(9, label.textLength * 0.34)
+        return Math.hypot(label.x - candidate.x, label.y - candidate.y) < candidateRadius + labelRadius
+      })
+    })
+
+    if (!fittingCandidate) continue
+
+    labels.push(fittingCandidate)
 
     if (labels.length >= maxLabels) break
   }
@@ -267,6 +311,20 @@ function userMarkerSvg(userLat: number, userLon: number, bbox: BBox, size: numbe
   </g>`.trim()
 }
 
+function centerMarkerSvg(mode: string, center: number) {
+  if (mode === "none") return ""
+
+  if (mode === "user") {
+    return `
+  <circle cx="${center}" cy="${center}" r="7" fill="#2563eb" />
+  <circle cx="${center}" cy="${center}" r="14" fill="none" stroke="#2563eb" stroke-opacity="0.25" stroke-width="3" />`.trim()
+  }
+
+  return `
+  <circle cx="${center}" cy="${center}" r="7" fill="#ef4444" />
+  <circle cx="${center}" cy="${center}" r="14" fill="none" stroke="#ef4444" stroke-opacity="0.25" stroke-width="3" />`.trim()
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -277,6 +335,7 @@ export async function GET(request: Request) {
     const userLon = Number(searchParams.get("userLon"))
     const side = clamp(Number(searchParams.get("side") ?? 500), 250, 1000)
     const px = clamp(Number(searchParams.get("px") ?? 320), 200, 800)
+    const centerMode = searchParams.get("center") ?? "stop"
 
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       return new Response("Missing or invalid lat/lon", { status: 400 })
@@ -284,7 +343,7 @@ export async function GET(request: Request) {
 
     const [buildings, streets] = await Promise.all([loadLayer("buildings"), loadLayer("streets")])
 
-    const bbox = getBBoxAround(lat, lon, side / 2)
+    const bbox = getBBoxAroundMeters(lat, lon, side / 2)
 
     const streetsInView = streets.features.filter((feature) => bboxIntersects(feature.bbox, bbox))
     const buildingsInView = buildings.features.filter((feature) => bboxIntersects(feature.bbox, bbox))
@@ -305,7 +364,7 @@ export async function GET(request: Request) {
     const streetLabelText = streetLabels
       .map(
         (label) =>
-          `<text transform="translate(${label.x} ${label.y}) rotate(${label.angle})" text-anchor="middle" dominant-baseline="central" textLength="${label.textLength}" lengthAdjust="spacing">${escapeXml(label.name)}</text>`,
+          `<text transform="translate(${label.x} ${label.y}) rotate(${label.angle})" text-anchor="middle" dominant-baseline="central" textLength="${label.textLength}" lengthAdjust="spacing" font-size="${label.fontSize}">${escapeXml(label.name)}</text>`,
       )
       .join("")
 
@@ -313,6 +372,7 @@ export async function GET(request: Request) {
       Number.isFinite(userLat) && Number.isFinite(userLon) ? userMarkerSvg(userLat, userLon, bbox, px) : ""
 
     const center = px / 2
+    const centerMarker = centerMarkerSvg(centerMode, center)
 
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${px} ${px}" width="${px}" height="${px}">
@@ -323,12 +383,11 @@ export async function GET(request: Request) {
   <g fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.7" fill-rule="evenodd">
     ${buildingPaths}
   </g>
-  <g fill="#64748b" fill-opacity="0.92" font-size="7.5" font-weight="600" font-family="ui-sans-serif, system-ui, sans-serif" letter-spacing="0.15" paint-order="stroke" stroke="#f8fafc" stroke-opacity="0.96" stroke-width="2.2" stroke-linejoin="round">
+  <g fill="#64748b" fill-opacity="0.92" font-weight="600" font-family="ui-sans-serif, system-ui, sans-serif" letter-spacing="0.12" paint-order="stroke" stroke="#f8fafc" stroke-opacity="0.96" stroke-width="2.1" stroke-linejoin="round">
     ${streetLabelText}
   </g>
   ${userMarker}
-  <circle cx="${center}" cy="${center}" r="7" fill="#ef4444" />
-  <circle cx="${center}" cy="${center}" r="14" fill="none" stroke="#ef4444" stroke-opacity="0.25" stroke-width="3" />
+  ${centerMarker}
 </svg>`.trim()
 
     return new Response(svg, {
