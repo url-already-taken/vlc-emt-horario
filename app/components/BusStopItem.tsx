@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import BusArrivalInfo from "./BusArrivalInfo"
+import StopMiniMap from "./StopMiniMap"
 import type { BusStop, RouteDirectionInfo } from "../../lib/busStopTypes"
 
 interface BusStopItemProps {
@@ -26,6 +27,7 @@ export default function BusStopItem({
   compact = false,
 }: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
+  const [showMap, setShowMap] = useState(false)
   const ref = useRef<HTMLLIElement>(null)
   const stopLabel = formatStopName(stop.name)
   const distanceSummary =
@@ -131,6 +133,34 @@ export default function BusStopItem({
           {isFavorite ? "★ Guardada" : "☆ Favorita"}
         </Button>
       </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          onClick={() => setShowMap((prev) => !prev)}
+          variant="outline"
+          size="sm"
+          className="rounded-full border-slate-200 bg-white/90 px-3 text-xs text-slate-600"
+        >
+          {showMap ? "Ocultar mapa" : "Mostrar mapa"}
+        </Button>
+
+        <Button
+          type="button"
+          onClick={() => onSelectStop(stop)}
+          variant="ghost"
+          size="sm"
+          className="rounded-full px-3 text-xs text-slate-600"
+        >
+          Detalles
+        </Button>
+      </div>
+
+      {showMap && (
+        <div className="mt-3">
+          <StopMiniMap lat={stop.lat} lon={stop.lon} stopName={stopLabel} />
+        </div>
+      )}
 
       {distanceMeters !== null && (
         <div className="mt-3">

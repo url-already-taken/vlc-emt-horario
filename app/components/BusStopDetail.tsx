@@ -2,6 +2,7 @@ import type { BusStop } from "../../lib/busStopTypes"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import BusArrivalInfo from "./BusArrivalInfo"
+import StopMiniMap from "./StopMiniMap"
 
 interface BusStopDetailProps {
   stop: BusStop
@@ -30,6 +31,9 @@ export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
             </ul>
           </div>
           <BusArrivalInfo stopId={stop.stopId} />
+          <div className="pt-2">
+            <StopMiniMap lat={stop.lat} lon={stop.lon} stopName={stop.name} />
+          </div>
         </div>
         <Button onClick={onClose} className="mt-4 w-full">
           Cerrar

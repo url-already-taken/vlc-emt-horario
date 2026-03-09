@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StopCompass from "./components/StopCompass"
 import CompassOverlay from "./components/CompassOverlay"
 
+export const dynamic = "force-dynamic"
+
 const GEO_PERMISSION_STATE_STORAGE_KEY = "paradaya:geo-permission-state"
 const LEGACY_GEO_PERMISSION_STORAGE_KEY = "paradaya:geo-permission-granted"
 const USER_LOCATION_STORAGE_KEY = "paradaya:user-location"
