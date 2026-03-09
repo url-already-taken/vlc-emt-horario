@@ -121,6 +121,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
       ).slice(0, 4)
 
       return {
+        rawStop: stop,
         stopId: stop.stopId,
         name: formatStopName(stop.name),
         location: stop.ubica,
@@ -149,7 +150,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
       const projectedPoint = projectPointToSquare(stop.lat, stop.lon, bbox, MAP_VIEWBOX)
 
       return {
-        rawStop: stop,
+        rawStop: stop.rawStop,
         stopId: stop.stopId,
         name: stop.name,
         location: stop.location,

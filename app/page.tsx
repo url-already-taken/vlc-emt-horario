@@ -274,7 +274,7 @@ function HomeContent() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">ParadaYa</h1>
         <p className="mt-1 text-sm text-slate-500">Paradas cercanas, favoritos y tiempos en una vista más compacta.</p>
       </header>
-      {showCompassOverlay && <CompassOverlay onClose={handleCompassClose} />}
+      {showCompassOverlay && <CompassOverlay onClose={handleCompassClose} onOpenStop={setSelectedStop} />}
       {showAllStations ? (
         <>
           <Button onClick={() => setShowAllStations(false)} variant="outline" className="mb-4 rounded-xl bg-white/90">
