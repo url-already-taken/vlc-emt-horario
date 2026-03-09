@@ -106,10 +106,6 @@ function geometryToPath(geometry: Geometry, bbox: BBox, size: number) {
   }
 }
 
-function pointInBBox([lon, lat]: Point, bbox: BBox) {
-  return lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3]
-}
-
 function escapeXml(text: string) {
   return text
     .replaceAll("&", "&amp;")
@@ -119,32 +115,113 @@ function escapeXml(text: string) {
     .replaceAll("'", "&apos;")
 }
 
-function pickStreetLabels(features: StoredFeature[], bbox: BBox, size: number) {
-  const labels: Array<{ name: string; x: number; y: number }> = []
+function toDisplayStreetName(name: string) {
+  const shortened = name
+    .trim()
+    .replace(/^CARRER\s+/i, "")
+    .replace(/^CALLE\s+/i, "")
+    .replace(/^AVINGUDA\s+/i, "Av. ")
+    .replace(/^AVENIDA\s+/i, "Av. ")
+    .replace(/^PASSEIG\s+/i, "Pg. ")
+    .replace(/^PASEO\s+/i, "Pso. ")
+    .replace(/^PLAÇA\s+/i, "Pl. ")
+    .replace(/^PLAZA\s+/i, "Pl. ")
+
+  return shortened
+    .toLocaleLowerCase("es-ES")
+    .replace(/(^|[\s/-])([\p{L}])/gu, (match, prefix, letter) => `${prefix}${letter.toLocaleUpperCase("es-ES")}`)
+}
+
+function lineStringsFromGeometry(geometry: Geometry) {
+  switch (geometry.type) {
+    case "LineString":
+      return [geometry.coordinates]
+    case "MultiLineString":
+      return geometry.coordinates
+    default:
+      return []
+  }
+}
+
+function normalizeAngle(angle: number) {
+  if (angle > 90) return angle - 180
+  if (angle < -90) return angle + 180
+  return angle
+}
+
+function pickStreetLabels(features: StoredFeature[], bbox: BBox, size: number, sideMeters: number) {
+  const labels: Array<{ name: string; x: number; y: number; angle: number; textLength: number }> = []
   const seenNames = new Set<string>()
+  const maxLabels = sideMeters <= 250 ? 10 : sideMeters <= 500 ? 12 : 15
+  const overlapDistance = sideMeters <= 250 ? 24 : sideMeters <= 500 ? 22 : 20
 
   const candidates = features
-    .filter((feature) => {
-      const { name, labelPoint, labelLength } = feature.properties
-      return Boolean(name && labelPoint && labelLength && labelLength >= 55 && pointInBBox(labelPoint, bbox))
+    .map((feature) => {
+      const rawName = feature.properties.name?.trim()
+      if (!rawName) return null
+
+      const name = toDisplayStreetName(rawName)
+      const minSegmentLength = Math.max(18, Math.min(34, name.length * 3.1))
+      const segmentCandidates: Array<{
+        name: string
+        x: number
+        y: number
+        angle: number
+        textLength: number
+        priority: number
+      }> = []
+
+      for (const line of lineStringsFromGeometry(feature.geometry)) {
+        for (let index = 1; index < line.length; index += 1) {
+          const start = line[index - 1]
+          const end = line[index]
+          const [x1, y1] = projectPointRaw(start, bbox, size)
+          const [x2, y2] = projectPointRaw(end, bbox, size)
+          const dx = x2 - x1
+          const dy = y2 - y1
+          const segmentLength = Math.hypot(dx, dy)
+
+          if (segmentLength < minSegmentLength) continue
+
+          const midX = (x1 + x2) / 2
+          const midY = (y1 + y2) / 2
+
+          if (midX < 30 || midX > size - 30 || midY < 24 || midY > size - 24) continue
+
+          const textLength = Math.max(20, Math.min(segmentLength - 6, 82))
+          segmentCandidates.push({
+            name,
+            x: Number(midX.toFixed(1)),
+            y: Number(midY.toFixed(1)),
+            angle: Number(normalizeAngle((Math.atan2(dy, dx) * 180) / Math.PI).toFixed(1)),
+            textLength: Number(textLength.toFixed(1)),
+            priority: segmentLength,
+          })
+        }
+      }
+
+      if (!segmentCandidates.length) return null
+
+      return segmentCandidates.sort((a, b) => b.priority - a.priority)[0]
     })
-    .sort((a, b) => (b.properties.labelLength ?? 0) - (a.properties.labelLength ?? 0))
+    .filter(
+      (
+        candidate,
+      ): candidate is { name: string; x: number; y: number; angle: number; textLength: number; priority: number } =>
+        candidate !== null,
+    )
+    .sort((a, b) => b.priority - a.priority)
 
-  for (const feature of candidates) {
-    const { name, labelPoint } = feature.properties
+  for (const candidate of candidates) {
+    if (seenNames.has(candidate.name)) continue
 
-    if (!name || !labelPoint || seenNames.has(name)) continue
-
-    const [x, y] = projectPoint(labelPoint, bbox, size)
-    if (x < 26 || x > size - 26 || y < 22 || y > size - 18) continue
-
-    const overlaps = labels.some((label) => Math.hypot(label.x - x, label.y - y) < 42)
+    const overlaps = labels.some((label) => Math.hypot(label.x - candidate.x, label.y - candidate.y) < overlapDistance)
     if (overlaps) continue
 
-    labels.push({ name, x, y })
-    seenNames.add(name)
+    labels.push(candidate)
+    seenNames.add(candidate.name)
 
-    if (labels.length >= 10) break
+    if (labels.length >= maxLabels) break
   }
 
   return labels
@@ -211,7 +288,7 @@ export async function GET(request: Request) {
 
     const streetsInView = streets.features.filter((feature) => bboxIntersects(feature.bbox, bbox))
     const buildingsInView = buildings.features.filter((feature) => bboxIntersects(feature.bbox, bbox))
-    const streetLabels = pickStreetLabels(streetsInView, bbox, px)
+    const streetLabels = pickStreetLabels(streetsInView, bbox, px, side)
 
     const streetPaths = streetsInView
       .map((feature) => geometryToPath(feature.geometry, bbox, px))
@@ -228,7 +305,7 @@ export async function GET(request: Request) {
     const streetLabelText = streetLabels
       .map(
         (label) =>
-          `<text x="${label.x}" y="${label.y}" text-anchor="middle">${escapeXml(label.name)}</text>`,
+          `<text transform="translate(${label.x} ${label.y}) rotate(${label.angle})" text-anchor="middle" dominant-baseline="central" textLength="${label.textLength}" lengthAdjust="spacing">${escapeXml(label.name)}</text>`,
       )
       .join("")
 
@@ -246,7 +323,7 @@ export async function GET(request: Request) {
   <g fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.7" fill-rule="evenodd">
     ${buildingPaths}
   </g>
-  <g fill="#475569" font-size="10" font-weight="700" font-family="ui-sans-serif, system-ui, sans-serif" paint-order="stroke" stroke="#f8fafc" stroke-width="3" stroke-linejoin="round">
+  <g fill="#64748b" fill-opacity="0.92" font-size="7.5" font-weight="600" font-family="ui-sans-serif, system-ui, sans-serif" letter-spacing="0.15" paint-order="stroke" stroke="#f8fafc" stroke-opacity="0.96" stroke-width="2.2" stroke-linejoin="round">
     ${streetLabelText}
   </g>
   ${userMarker}

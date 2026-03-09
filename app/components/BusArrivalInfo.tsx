@@ -83,14 +83,16 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
 
   if (loading) {
     return (
-      <div className={variant === "favorite" ? "text-[10px] text-slate-400" : "text-sm text-slate-500"}>
+      <div className={variant === "favorite" ? "text-[11px] font-medium text-slate-400" : "text-sm text-slate-500"}>
         Cargando llegadas...
       </div>
     )
   }
   if (error) {
     return (
-      <div className={variant === "favorite" ? "text-[10px] text-red-500" : "text-sm text-red-600"}>{error}</div>
+      <div className={variant === "favorite" ? "text-[11px] font-medium text-red-500" : "text-sm text-red-600"}>
+        {error}
+      </div>
     )
   }
 
@@ -98,31 +100,35 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
     return (
       <div className="ml-auto shrink-0">
         {buses.length > 0 ? (
-          <ul className="flex max-w-[10.5rem] flex-wrap justify-end gap-1">
+          <ul className="flex max-w-[11rem] flex-wrap justify-end gap-1">
             {buses.slice(0, 3).map((bus, index) => {
               const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
               const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
               const direction = directionByLine.get(bus.line.toUpperCase())
               const label = formatCompactMinutes(bus.minutes)
+              const lineClass = isQuickArrival ? "bg-emerald-700 text-white" : "bg-slate-950 text-white"
+              const etaClass = isQuickArrival ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-700"
 
               return (
                 <li
                   key={`${stopId}-favorite-${index}`}
-                  className={
-                    isQuickArrival
-                      ? "inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-1 text-[10px] font-semibold leading-none text-emerald-700"
-                      : "inline-flex items-center gap-1 rounded-full bg-slate-900 px-1.5 py-1 text-[10px] font-semibold leading-none text-white"
-                  }
+                  className="inline-flex overflow-hidden rounded-full border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70"
                   title={formatHeadsign(direction?.headSign) ?? bus.line}
                 >
-                  <span className={isQuickArrival ? "text-emerald-700/80" : "text-white/70"}>{bus.line}</span>
-                  <span>{label}</span>
+                  <span
+                    className={`inline-flex min-w-[2rem] items-center justify-center px-2 py-1 text-[11px] font-black leading-none tracking-[0.02em] ${lineClass}`}
+                  >
+                    {bus.line}
+                  </span>
+                  <span className={`inline-flex items-center px-1.5 py-1 text-[10px] font-semibold leading-none tabular-nums ${etaClass}`}>
+                    {label}
+                  </span>
                 </li>
               )
             })}
           </ul>
         ) : (
-          <p className="text-[10px] font-medium text-slate-400">--</p>
+          <p className="text-[11px] font-semibold text-slate-400">--</p>
         )}
       </div>
     )
