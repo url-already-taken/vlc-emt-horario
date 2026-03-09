@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useMemo } from "react"
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react"
 import { fetchBusStops } from "./busStopService"
 import { distanceKm } from "./geoUtils"
 import { BusStop, StopDirectionMap } from "./busStopTypes"
 import { computeRouteDirections } from "./directionUtils"
+import { FavoriteStopsMap, readFavoriteStops, writeFavoriteStops } from "./favoriteStops"
 
 interface Location {
   latitude: number
@@ -20,7 +21,9 @@ interface BusStopContextType {
   setUserLocation: (location: Location) => void
   filteredStops: BusStop[]
   setDistanceFilter: (distance: number) => void
-  nearestStops: BusStop[]   // <--- добавляем сюда
+  nearestStops: BusStop[]
+  favoriteStops: FavoriteStopsMap
+  toggleFavoriteStop: (stopId: string) => void
 }
 
 const BusStopContext = createContext<BusStopContextType | undefined>(undefined)
@@ -31,6 +34,7 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [userLocation, setUserLocation] = useState<Location | null>(null)
   const [distanceFilter, setDistanceFilter] = useState<number>(Number.POSITIVE_INFINITY)
+  const [favoriteStops, setFavoriteStops] = useState<FavoriteStopsMap>({})
 
   useEffect(() => {
     const loadStops = async () => {
@@ -49,7 +53,10 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
     loadStops()
   }, [])
 
-  // фильтрованные остановки по distanceFilter
+  useEffect(() => {
+    setFavoriteStops(readFavoriteStops())
+  }, [])
+
   const filteredStops = useMemo(() => {
     if (!userLocation) return stops
     return stops.filter((stop) => {
@@ -60,7 +67,21 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
 
   const routeDirections = useMemo(() => computeRouteDirections(stops), [stops])
 
-  // ближайшие 5
+  const toggleFavoriteStop = useCallback((stopId: string) => {
+    setFavoriteStops((prev) => {
+      const updated = { ...prev }
+
+      if (updated[stopId]) {
+        delete updated[stopId]
+      } else {
+        updated[stopId] = true
+      }
+
+      writeFavoriteStops(updated)
+      return updated
+    })
+  }, [])
+
   const nearestStops = useMemo(() => {
     if (!userLocation) return []
     return filteredStops
@@ -70,7 +91,7 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
         const distB = distanceKm(userLocation.latitude, userLocation.longitude, b.lat, b.lon)
         return distA - distB
       })
-      .slice(0, 3)
+      .slice(0, 5)
   }, [filteredStops, userLocation])
 
   return (
@@ -84,7 +105,9 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
         setUserLocation,
         filteredStops,
         setDistanceFilter,
-        nearestStops
+        nearestStops,
+        favoriteStops,
+        toggleFavoriteStop,
       }}
     >
       {children}

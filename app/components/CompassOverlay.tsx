@@ -5,6 +5,7 @@ import { Compass, LocateFixed, MapPinned, Navigation, Route, X } from "lucide-re
 import { Button } from "@/components/ui/button"
 import { useBusStops } from "@/lib/BusStopContext"
 import { useDeviceHeading } from "@/hooks/useDeviceHeading"
+import BusArrivalInfo from "./BusArrivalInfo"
 import {
   clamp,
   distanceKm,
@@ -13,6 +14,7 @@ import {
   normalizeDegrees,
   projectPointToSquare,
 } from "@/lib/geoUtils"
+import type { BusStop, RouteDirectionInfo } from "@/lib/busStopTypes"
 
 const MAP_VIEWBOX = 1000
 const MAP_IMAGE_SIZE = 720
@@ -25,28 +27,47 @@ const STOP_ACCENTS = [
   {
     fill: "#0f766e",
     stroke: "#14b8a6",
+    dotClass: "bg-teal-500",
     badgeClass: "bg-teal-500 text-white",
     chipClass: "bg-teal-50 text-teal-800 ring-teal-200",
   },
   {
     fill: "#1d4ed8",
     stroke: "#60a5fa",
+    dotClass: "bg-blue-500",
     badgeClass: "bg-blue-500 text-white",
     chipClass: "bg-blue-50 text-blue-800 ring-blue-200",
   },
   {
     fill: "#b45309",
     stroke: "#f59e0b",
+    dotClass: "bg-amber-500",
     badgeClass: "bg-amber-500 text-white",
     chipClass: "bg-amber-50 text-amber-800 ring-amber-200",
+  },
+  {
+    fill: "#be123c",
+    stroke: "#fb7185",
+    dotClass: "bg-rose-500",
+    badgeClass: "bg-rose-500 text-white",
+    chipClass: "bg-rose-50 text-rose-800 ring-rose-200",
+  },
+  {
+    fill: "#334155",
+    stroke: "#94a3b8",
+    dotClass: "bg-slate-500",
+    badgeClass: "bg-slate-500 text-white",
+    chipClass: "bg-slate-100 text-slate-800 ring-slate-200",
   },
 ] as const
 
 interface CompassOverlayProps {
   onClose: () => void
+  onOpenStop?: (stop: BusStop) => void
 }
 
 interface StopSummary {
+  rawStop: BusStop
   stopId: string
   name: string
   location: string
@@ -58,10 +79,11 @@ interface StopSummary {
     y: number
   }
   routeBadges: string[]
+  directions: RouteDirectionInfo[]
 }
 
-export default function CompassOverlay({ onClose }: CompassOverlayProps) {
-  const { nearestStops, routeDirections, userLocation } = useBusStops()
+export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayProps) {
+  const { nearestStops, routeDirections, userLocation, favoriteStops, toggleFavoriteStop } = useBusStops()
   const { heading, hasSignal, isSupported } = useDeviceHeading(true)
 
   useEffect(() => {
@@ -127,6 +149,7 @@ export default function CompassOverlay({ onClose }: CompassOverlayProps) {
       const projectedPoint = projectPointToSquare(stop.lat, stop.lon, bbox, MAP_VIEWBOX)
 
       return {
+        rawStop: stop,
         stopId: stop.stopId,
         name: stop.name,
         location: stop.location,
@@ -138,6 +161,7 @@ export default function CompassOverlay({ onClose }: CompassOverlayProps) {
           y: clamp(projectedPoint.y, 72, MAP_VIEWBOX - 72),
         },
         routeBadges: stop.routeBadges,
+        directions: routeDirections[stop.stopId] ?? [],
       }
     })
 
@@ -174,11 +198,11 @@ export default function CompassOverlay({ onClose }: CompassOverlayProps) {
             <div className="max-w-2xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">Modo brújula</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-                Mapa estable con rumbo en vivo
+                Las 5 paradas mas cercanas, con rumbo y tiempos
               </h2>
               <p className="mt-2 text-sm text-slate-600">
-                La flecha sigue el teléfono con suavizado. El mapa se queda quieto para que las paradas no bailen cada
-                vez que gires la mano.
+                El mapa queda fijo, la aguja sigue tu movil y cada tarjeta ya muestra proximos autobuses y acceso a
+                favoritos.
               </p>
             </div>
 
@@ -241,13 +265,17 @@ export default function CompassOverlay({ onClose }: CompassOverlayProps) {
                 <div className="rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                     <LegendDot color="bg-slate-900" label="Tu posición" />
-                    <LegendDot color="bg-teal-500" label="Parada 1" />
-                    <LegendDot color="bg-blue-500" label="Parada 2" />
-                    <LegendDot color="bg-amber-500" label="Parada 3" />
+                    {(overlayData?.stopSummaries ?? []).map((stop, index) => (
+                      <LegendDot
+                        key={`${stop.stopId}-legend`}
+                        color={STOP_ACCENTS[index % STOP_ACCENTS.length].dotClass}
+                        label={`Parada ${index + 1}`}
+                      />
+                    ))}
                   </div>
                   <p className="mt-3 text-sm text-slate-600">
-                    Los números del mapa coinciden con las tarjetas de la derecha. La frase “delante”, “derecha” o
-                    “espalda” se calcula según cómo tengas orientado el móvil ahora mismo.
+                    Los numeros del mapa coinciden con las tarjetas. La posicion relativa cambia con la orientacion
+                    actual del movil.
                   </p>
                 </div>
               </div>
@@ -259,20 +287,21 @@ export default function CompassOverlay({ onClose }: CompassOverlayProps) {
                     Paradas cercanas
                   </div>
                   <p className="mt-2 text-sm text-slate-600">
-                    Vista rápida para moverte a pie sin el overlay antiguo de puntos flotando.
+                    Tarjetas compactas para comparar distancia, lineas, tiempos y favoritos sin salir de la brujula.
                   </p>
                 </div>
 
                 {(overlayData?.stopSummaries ?? []).length > 0 ? (
-                  (overlayData?.stopSummaries ?? []).map((stop, index) => {
+                  (overlayData?.stopSummaries ?? []).map((summary, index) => {
                     const accent = STOP_ACCENTS[index % STOP_ACCENTS.length]
+                    const isFavorite = Boolean(favoriteStops[summary.stopId])
 
                     return (
                       <article
-                        key={stop.stopId}
-                        className="rounded-[28px] border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur"
+                        key={summary.stopId}
+                        className="rounded-[30px] border border-white/70 bg-white/90 p-4 shadow-sm shadow-slate-200/60 backdrop-blur"
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <span
@@ -284,33 +313,48 @@ export default function CompassOverlay({ onClose }: CompassOverlayProps) {
                                 parada cercana
                               </span>
                             </div>
-                            <h3 className="mt-2 truncate text-base font-semibold text-slate-950">{stop.name}</h3>
+                            <h3 className="mt-2 truncate text-base font-semibold text-slate-950">{summary.name}</h3>
                             <p className="mt-1 text-xs text-slate-500">
-                              #{stop.stopId} · {stop.location}
+                              #{summary.stopId} · {summary.location}
                             </p>
                           </div>
 
-                          <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
-                            {formatDistance(stop.distanceMeters)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
+                              {formatDistance(summary.distanceMeters)}
+                            </span>
+                            <Button
+                              type="button"
+                              onClick={() => toggleFavoriteStop(summary.stopId)}
+                              variant={isFavorite ? "default" : "outline"}
+                              size="sm"
+                              className={
+                                isFavorite
+                                  ? "rounded-full bg-slate-900 px-3 text-xs"
+                                  : "rounded-full border-slate-200 bg-white px-3 text-xs text-slate-700"
+                              }
+                            >
+                              {isFavorite ? "Quitar favorita" : "Guardar"}
+                            </Button>
+                          </div>
                         </div>
 
                         <div className="mt-3 flex flex-wrap gap-2">
                           <span
                             className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${accent.chipClass}`}
                           >
-                            {stop.relativeLabel}
+                            {summary.relativeLabel}
                           </span>
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
-                            Azimut {Math.round(stop.absoluteBearing)}°
+                            Azimut {Math.round(summary.absoluteBearing)}°
                           </span>
                         </div>
 
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {stop.routeBadges.length ? (
-                            stop.routeBadges.map((route) => (
+                          {summary.routeBadges.length ? (
+                            summary.routeBadges.map((route) => (
                               <span
-                                key={`${stop.stopId}-${route}`}
+                                key={`${summary.stopId}-${route}`}
                                 className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700"
                               >
                                 <Route className="h-3 w-3" />
@@ -321,6 +365,35 @@ export default function CompassOverlay({ onClose }: CompassOverlayProps) {
                             <span className="text-xs text-slate-400">Sin líneas detectadas para esta parada.</span>
                           )}
                         </div>
+
+                        <div className="mt-3 rounded-[24px] border border-slate-200/80 bg-slate-50/90 p-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              Proximos buses
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-400">
+                              {summary.routeBadges.length ? `${summary.routeBadges.length} lineas` : "Sin lineas"}
+                            </span>
+                          </div>
+                          <BusArrivalInfo stopId={summary.stopId} directions={summary.directions} variant="compact" />
+                        </div>
+
+                        {onOpenStop && (
+                          <div className="mt-3 flex justify-end">
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                onOpenStop(summary.rawStop)
+                                onClose()
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="rounded-full px-3 text-xs text-slate-600"
+                            >
+                              Detalles
+                            </Button>
+                          </div>
+                        )}
                       </article>
                     )
                   })

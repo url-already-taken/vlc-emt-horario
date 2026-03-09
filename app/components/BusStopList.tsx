@@ -1,31 +1,9 @@
 "use client"
-import { useState, useEffect, useMemo } from "react"
+import { useMemo } from "react"
 import BusStopItem from "./BusStopItem"
 import { useBusStops } from "../../lib/BusStopContext"
 import { calculateDistance } from "../../lib/geoUtils"
 import type { BusStop } from "../../lib/busStopTypes"
-
-const FAVORITES_STORAGE_KEY = "bus-stop-favorites"
-
-const safeFavoritesStorage = {
-  read() {
-    if (typeof window === "undefined") return null
-    try {
-      return window.localStorage.getItem(FAVORITES_STORAGE_KEY)
-    } catch (err) {
-      console.warn("No se pudo leer favoritos almacenados:", err)
-      return null
-    }
-  },
-  write(value: string) {
-    if (typeof window === "undefined") return
-    try {
-      window.localStorage.setItem(FAVORITES_STORAGE_KEY, value)
-    } catch (err) {
-      console.warn("No se pudo guardar favoritos:", err)
-    }
-  },
-}
 
 interface BusStopListProps {
   sortBy: "nearest" | "soonest"
@@ -34,33 +12,8 @@ interface BusStopListProps {
 }
 
 export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusStopListProps) {
-  const { filteredStops, loading, error, userLocation, routeDirections } = useBusStops()
-  const [favoriteStops, setFavoriteStops] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    try {
-      const stored = safeFavoritesStorage.read()
-      if (stored) {
-        setFavoriteStops(JSON.parse(stored))
-      }
-    } catch (err) {
-      console.error("Error reading saved favorites:", err)
-    }
-  }, [])
-
-  const handleToggleFavorite = (stopId: string) => {
-    setFavoriteStops((prev) => {
-      const updated = { ...prev }
-      if (updated[stopId]) {
-        delete updated[stopId]
-      } else {
-        updated[stopId] = true
-      }
-      safeFavoritesStorage.write(JSON.stringify(updated))
-      return updated
-    })
-  }
+  const { filteredStops, loading, error, userLocation, routeDirections, favoriteStops, toggleFavoriteStop } =
+    useBusStops()
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
@@ -111,7 +64,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
                 userLocation={userLocation}
                 isFavorite
                 compact
-                onToggleFavorite={handleToggleFavorite}
+                onToggleFavorite={toggleFavoriteStop}
                 directions={routeDirections[stop.stopId]}
               />
             ))}
@@ -134,7 +87,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
                 onSelectStop={onSelectStop}
                 userLocation={userLocation}
                 isFavorite={Boolean(favoriteStops[stop.stopId])}
-                onToggleFavorite={handleToggleFavorite}
+                onToggleFavorite={toggleFavoriteStop}
                 directions={routeDirections[stop.stopId]}
               />
             ))}
