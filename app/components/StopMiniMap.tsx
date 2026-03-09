@@ -9,9 +9,13 @@ interface StopMiniMapProps {
   lat: number
   lon: number
   stopName: string
+  userLocation?: {
+    latitude: number
+    longitude: number
+  } | null
 }
 
-export default function StopMiniMap({ lat, lon, stopName }: StopMiniMapProps) {
+export default function StopMiniMap({ lat, lon, stopName, userLocation = null }: StopMiniMapProps) {
   const [side, setSide] = useState<(typeof MAP_SIZES)[number]>(500)
 
   const src = useMemo(() => {
@@ -21,8 +25,14 @@ export default function StopMiniMap({ lat, lon, stopName }: StopMiniMapProps) {
       side: String(side),
       px: "320",
     })
+
+    if (userLocation) {
+      params.set("userLat", String(userLocation.latitude))
+      params.set("userLon", String(userLocation.longitude))
+    }
+
     return `/api/mini-map?${params.toString()}`
-  }, [lat, lon, side])
+  }, [lat, lon, side, userLocation])
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm">
@@ -32,6 +42,7 @@ export default function StopMiniMap({ lat, lon, stopName }: StopMiniMapProps) {
           <div className="text-[11px] text-slate-500">
             {side} × {side} m alrededor de {stopName}
           </div>
+          {userLocation && <div className="text-[11px] text-slate-400">Rojo: parada. Azul: tu posición.</div>}
         </div>
 
         <div className="flex gap-1">

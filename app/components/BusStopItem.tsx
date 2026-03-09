@@ -158,7 +158,7 @@ export default function BusStopItem({
 
       {showMap && (
         <div className="mt-3">
-          <StopMiniMap lat={stop.lat} lon={stop.lon} stopName={stopLabel} />
+          <StopMiniMap lat={stop.lat} lon={stop.lon} stopName={stopLabel} userLocation={userLocation} />
         </div>
       )}
 

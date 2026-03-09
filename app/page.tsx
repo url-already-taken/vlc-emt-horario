@@ -133,7 +133,7 @@ function HomeContent() {
   const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
   const [cachedLocationSavedAt, setCachedLocationSavedAt] = useState<number | null>(null)
-  const { setUserLocation, setDistanceFilter, loading, error } = useBusStops()
+  const { setUserLocation, setDistanceFilter, loading, error, userLocation } = useBusStops()
   const hasCachedLocation = cachedLocationSavedAt !== null
   const cachedLocationTime = formatLocationTimestamp(cachedLocationSavedAt)
 
@@ -351,7 +351,13 @@ function HomeContent() {
               }`}
             >
               <BusStopList sortBy={sortBy} onSelectStop={setSelectedStop} searchQuery={searchQuery} />
-              {selectedStop && <BusStopDetail stop={selectedStop} onClose={() => setSelectedStop(null)} />}
+              {selectedStop && (
+                <BusStopDetail
+                  stop={selectedStop}
+                  onClose={() => setSelectedStop(null)}
+                  userLocation={userLocation}
+                />
+              )}
             </div>
           )}
         </>

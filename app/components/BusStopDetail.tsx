@@ -7,9 +7,10 @@ import StopMiniMap from "./StopMiniMap"
 interface BusStopDetailProps {
   stop: BusStop
   onClose: () => void
+  userLocation: { latitude: number; longitude: number } | null
 }
 
-export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
+export default function BusStopDetail({ stop, onClose, userLocation }: BusStopDetailProps) {
   return (
     <Sheet open={true} onOpenChange={onClose}>
       <SheetContent>
@@ -32,7 +33,7 @@ export default function BusStopDetail({ stop, onClose }: BusStopDetailProps) {
           </div>
           <BusArrivalInfo stopId={stop.stopId} />
           <div className="pt-2">
-            <StopMiniMap lat={stop.lat} lon={stop.lon} stopName={stop.name} />
+            <StopMiniMap lat={stop.lat} lon={stop.lon} stopName={stop.name} userLocation={userLocation} />
           </div>
         </div>
         <Button onClick={onClose} className="mt-4 w-full">
