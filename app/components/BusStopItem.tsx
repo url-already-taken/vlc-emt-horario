@@ -31,6 +31,7 @@ export default function BusStopItem({
   const [showMap, setShowMap] = useState(false)
   const ref = useRef<HTMLLIElement>(null)
   const stopLabel = formatStopName(stop.name)
+  const favoriteStopLabel = formatFavoriteStopName(stop.name)
   const distanceSummary =
     sortBy === "nearest" && userLocation
       ? formatDistanceSummary(userLocation.latitude, userLocation.longitude, stop.lat, stop.lon)
@@ -70,28 +71,35 @@ export default function BusStopItem({
 
   if (compact) {
     return (
-      <li ref={ref} className="py-1 first:pt-0 last:pb-0">
-        <div className="flex items-center gap-1.5 rounded-xl px-2 py-1 transition-colors hover:bg-amber-100/65 dark:hover:bg-amber-300/10">
-          <button type="button" onClick={() => onSelectStop(stop)} className="min-w-0 flex-1 text-left">
-            <div className="truncate text-[12px] font-semibold leading-4 text-slate-900 dark:text-slate-100">
-              {stopLabel}
-            </div>
-            <div className="flex items-center gap-1 text-[10px] leading-3 text-slate-500 dark:text-slate-400">
-              <span className="font-semibold text-amber-800 dark:text-amber-200">#{stop.stopId}</span>
-              <span className="text-amber-300/80 dark:text-amber-300/30">•</span>
-              <span className="truncate">{distanceSummary}</span>
-            </div>
+      <li ref={ref} className="border-t border-slate-950/20 first:border-t-0 dark:border-white/15">
+        <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_9.75rem_2.5rem] items-stretch bg-white text-slate-950 transition-colors hover:bg-slate-100 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900 sm:grid-cols-[minmax(0,1fr)_12rem_2.75rem]">
+          <button
+            type="button"
+            onClick={() => onSelectStop(stop)}
+            className="flex min-w-0 items-center border-r border-slate-950/20 px-3 py-3 text-left dark:border-white/15"
+          >
+            <span className="truncate text-base font-black leading-5 text-slate-950 dark:text-white sm:text-lg">
+              {favoriteStopLabel}
+            </span>
           </button>
-          {isVisible && <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="favorite" />}
+          <div className="min-w-0 border-r border-slate-950/20 dark:border-white/15">
+            {isVisible ? (
+              <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="favorite" />
+            ) : (
+              <div className="flex h-full min-h-16 items-center justify-center bg-slate-100 px-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                --
+              </div>
+            )}
+          </div>
           <Button
             type="button"
             onClick={handleToggleFavorite}
             variant="ghost"
             size="sm"
-            className="h-6 w-6 shrink-0 rounded-full px-0 text-amber-700/65 transition-transform hover:bg-white/80 hover:text-amber-900 active:scale-90 dark:text-amber-200/65 dark:hover:bg-white/10 dark:hover:text-amber-100"
+            className="h-full min-h-16 w-full shrink-0 rounded-none px-0 text-slate-500 transition-transform hover:bg-red-600 hover:text-white active:scale-95 dark:text-slate-300 dark:hover:bg-red-500 dark:hover:text-white"
             aria-label="Eliminar de favoritos"
           >
-            <X className="h-3 w-3" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </li>
@@ -221,6 +229,17 @@ function deg2rad(deg: number): number {
 
 function formatStopName(name: string): string {
   return name.trim()
+}
+
+function formatFavoriteStopName(name: string): string {
+  const trimmed = formatStopName(name)
+  const hyphenIndex = trimmed.indexOf("-")
+
+  if (hyphenIndex === -1) {
+    return trimmed
+  }
+
+  return trimmed.slice(hyphenIndex + 1).trim() || trimmed
 }
 
 function formatDistanceSummary(userLat: number, userLon: number, stopLat: number, stopLon: number): string {

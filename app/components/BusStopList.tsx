@@ -40,16 +40,16 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
   return (
     <div className="space-y-4">
       {favoriteList.length > 0 && (
-        <section className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/95 via-white/90 to-orange-50/80 p-2 shadow-[0_16px_45px_-28px_rgba(245,158,11,0.8)] ring-1 ring-amber-100/80 backdrop-blur dark:border-amber-300/25 dark:from-amber-300/15 dark:via-slate-950/85 dark:to-orange-400/10 dark:shadow-[0_18px_55px_-32px_rgba(251,191,36,0.55)] dark:ring-amber-300/20">
-          <div className="mb-1.5 flex items-center justify-between gap-3 px-2">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-200">
+        <section className="overflow-hidden rounded-lg border-2 border-slate-950 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.9)] dark:border-white dark:bg-slate-950 dark:shadow-black/40">
+          <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-stretch border-b-2 border-slate-950 bg-slate-950 text-white dark:border-white dark:bg-white dark:text-slate-950">
+            <h3 className="flex min-h-9 items-center px-3 text-[11px] font-black uppercase tracking-[0.22em]">
               Favoritas
             </h3>
-            <span className="rounded-full border border-amber-200/80 bg-amber-100/80 px-2 py-0.5 text-[10px] font-bold text-amber-800 shadow-sm shadow-amber-200/40 dark:border-amber-300/25 dark:bg-amber-300/15 dark:text-amber-100 dark:shadow-black/20">
+            <span className="flex min-h-9 items-center justify-center border-l-2 border-white text-sm font-black tabular-nums dark:border-slate-950">
               {favoriteList.length}
             </span>
           </div>
-          <ul className="divide-y divide-amber-200/70 dark:divide-amber-300/15">
+          <ul>
             {favoriteList.map((stop) => (
               <BusStopItem
                 key={`fav-${stop.stopId}`}

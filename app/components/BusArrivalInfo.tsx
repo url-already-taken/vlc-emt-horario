@@ -91,11 +91,11 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
       <div
         className={
           variant === "favorite"
-            ? "text-[11px] font-medium text-slate-400 dark:text-slate-500"
+            ? "flex h-full min-h-16 w-full items-center justify-center bg-slate-100 px-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-900 dark:text-slate-400"
             : "text-sm text-slate-500 dark:text-slate-400"
         }
       >
-        Cargando llegadas...
+        {variant === "favorite" ? "Cargando" : "Cargando llegadas..."}
       </div>
     )
   }
@@ -104,51 +104,64 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
       <div
         className={
           variant === "favorite"
-            ? "text-[11px] font-medium text-red-500 dark:text-red-300"
+            ? "flex h-full min-h-16 w-full items-center justify-center bg-red-50 px-2 text-[10px] font-black uppercase tracking-[0.16em] text-red-700 dark:bg-red-950/40 dark:text-red-200"
             : "text-sm text-red-600 dark:text-red-300"
         }
+        title={error}
       >
-        {error}
+        {variant === "favorite" ? "Error" : error}
       </div>
     )
   }
 
   if (variant === "favorite") {
-    return (
-      <div className="ml-auto shrink-0">
-        {buses.length > 0 ? (
-          <ul className="flex max-w-[11rem] flex-wrap justify-end gap-1">
-            {buses.slice(0, 3).map((bus, index) => {
-              const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
-              const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
-              const direction = directionByLine.get(bus.line.toUpperCase())
-              const label = formatCompactMinutes(bus.minutes)
-              const lineClass = isQuickArrival ? "bg-emerald-700 text-white" : "bg-red-600 text-white"
-              const etaClass = isQuickArrival
-                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-300/10 dark:text-emerald-200"
-                : "bg-red-50 text-red-700 dark:bg-red-300/10 dark:text-red-200"
+    const favoriteArrivalSlots: Array<Bus | null> = Array.from({ length: 3 }, (_, index) => buses[index] ?? null)
 
+    return (
+      <div className="h-full w-full">
+        <ul className="grid h-full min-h-16 grid-cols-3 bg-white dark:bg-slate-950">
+          {favoriteArrivalSlots.map((bus, index) => {
+            if (!bus) {
               return (
                 <li
-                  key={`${stopId}-favorite-${index}`}
-                  className="inline-flex overflow-hidden rounded-full border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70 dark:border-white/10 dark:bg-slate-950/80 dark:shadow-black/30"
-                  title={formatDestination(bus.destination) ?? formatHeadsign(direction?.headSign) ?? bus.line}
+                  key={`${stopId}-favorite-empty-${index}`}
+                  className="grid min-h-16 grid-rows-[1.45rem_1fr] border-r border-slate-950/20 bg-slate-50 text-slate-400 last:border-r-0 dark:border-white/15 dark:bg-slate-950 dark:text-slate-600"
+                  title="Sin llegada"
                 >
-                  <span
-                    className={`inline-flex min-w-[2rem] items-center justify-center px-2 py-1 text-[11px] font-black leading-none tracking-[0.02em] ${lineClass}`}
-                  >
-                    {bus.line}
+                  <span className="flex items-center justify-center border-b border-slate-950/20 text-[10px] font-black leading-none dark:border-white/15">
+                    --
                   </span>
-                  <span className={`inline-flex items-center px-1.5 py-1 text-[10px] font-semibold leading-none tabular-nums ${etaClass}`}>
-                    {label}
+                  <span className="flex items-center justify-center text-base font-black leading-none tabular-nums sm:text-lg">
+                    --
                   </span>
                 </li>
               )
-            })}
-          </ul>
-        ) : (
-          <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">--</p>
-        )}
+            }
+
+            const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
+            const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
+            const direction = directionByLine.get(bus.line.toUpperCase())
+            const label = formatCompactMinutes(bus.minutes)
+            const etaClass = isQuickArrival
+              ? "bg-emerald-400 text-emerald-950 dark:bg-emerald-300 dark:text-emerald-950"
+              : "bg-white text-slate-950 dark:bg-slate-950 dark:text-white"
+
+            return (
+              <li
+                key={`${stopId}-favorite-${index}`}
+                className="grid min-h-16 grid-rows-[1.45rem_1fr] border-r border-slate-950/20 last:border-r-0 dark:border-white/15"
+                title={formatDestination(bus.destination) ?? formatHeadsign(direction?.headSign) ?? bus.line}
+              >
+                <span className="flex items-center justify-center border-b border-slate-950/20 bg-slate-950 px-1 text-[11px] font-black leading-none text-white dark:border-white/15 dark:bg-white dark:text-slate-950 sm:text-xs">
+                  {bus.line}
+                </span>
+                <span className={`flex items-center justify-center px-1 text-[17px] font-black leading-none tabular-nums sm:text-xl ${etaClass}`}>
+                  {label}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
       </div>
     )
   }
