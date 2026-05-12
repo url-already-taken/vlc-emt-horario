@@ -138,8 +138,8 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
               )
             }
 
-            const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
-            const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
+            const etaMinutes = parseEtaMinutes(bus.minutes)
+            const isQuickArrival = etaMinutes !== null && etaMinutes < 5
             const direction = directionByLine.get(bus.line.toUpperCase())
             const label = formatCompactMinutes(bus.minutes)
             const etaClass = isQuickArrival
@@ -174,8 +174,8 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
       {buses.length > 0 ? (
         <ul className={variant === "compact" ? "space-y-1" : "space-y-1.5"}>
           {buses.slice(0, variant === "compact" ? 2 : buses.length).map((bus, index) => {
-            const minutesNumber = Number.parseInt(bus.minutes.split(" ")[0], 10)
-            const isQuickArrival = (!Number.isNaN(minutesNumber) && minutesNumber < 5) || bus.minutes.includes("Pròxim")
+            const etaMinutes = parseEtaMinutes(bus.minutes)
+            const isQuickArrival = etaMinutes !== null && etaMinutes < 5
             const direction = directionByLine.get(bus.line.toUpperCase())
             const rowClass =
               variant === "compact"
@@ -250,14 +250,39 @@ function formatDestination(destination?: string): string | undefined {
 }
 
 function formatCompactMinutes(minutes: string): string {
-  if (minutes.toLowerCase().includes("pròxim") || minutes.toLowerCase().includes("proxim")) {
-    return "0m"
-  }
-
-  const parsedMinutes = Number.parseInt(minutes, 10)
-  if (!Number.isNaN(parsedMinutes)) {
+  const parsedMinutes = parseEtaMinutes(minutes)
+  if (parsedMinutes !== null) {
     return `${parsedMinutes}m`
   }
 
   return minutes
+}
+
+function parseEtaMinutes(minutes: string): number | null {
+  const normalized = minutes.trim().toLowerCase()
+
+  if (normalized.includes("pròxim") || normalized.includes("proxim")) {
+    return 0
+  }
+
+  const hoursMatch = normalized.match(/(\d+)\s*h\b/)
+  const minutesMatch = normalized.match(/(\d+)\s*min\b/)
+
+  if (hoursMatch) {
+    const hours = Number.parseInt(hoursMatch[1], 10)
+    const extraMinutes = minutesMatch ? Number.parseInt(minutesMatch[1], 10) : 0
+    return hours * 60 + (Number.isNaN(extraMinutes) ? 0 : extraMinutes)
+  }
+
+  if (minutesMatch) {
+    const parsedMinutes = Number.parseInt(minutesMatch[1], 10)
+    return Number.isNaN(parsedMinutes) ? null : parsedMinutes
+  }
+
+  if (normalized.includes("h")) {
+    return null
+  }
+
+  const parsedMinutes = Number.parseInt(normalized, 10)
+  return Number.isNaN(parsedMinutes) ? null : parsedMinutes
 }
