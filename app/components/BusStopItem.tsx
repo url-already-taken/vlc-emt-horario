@@ -70,15 +70,15 @@ export default function BusStopItem({
 
   if (compact) {
     return (
-      <li ref={ref} className="py-1.5 first:pt-0 last:pb-0">
-        <div className="flex items-center gap-2 rounded-2xl px-2 py-1.5 transition-colors hover:bg-white/70 dark:hover:bg-white/5">
+      <li ref={ref} className="py-1 first:pt-0 last:pb-0">
+        <div className="flex items-center gap-1.5 rounded-xl px-2 py-1 transition-colors hover:bg-amber-100/65 dark:hover:bg-amber-300/10">
           <button type="button" onClick={() => onSelectStop(stop)} className="min-w-0 flex-1 text-left">
-            <div className="truncate text-[13px] font-semibold leading-4 text-slate-900 dark:text-slate-100">
+            <div className="truncate text-[12px] font-semibold leading-4 text-slate-900 dark:text-slate-100">
               {stopLabel}
             </div>
-            <div className="mt-0.5 flex items-center gap-1 text-[10px] leading-3 text-slate-500 dark:text-slate-400">
-              <span className="font-medium text-slate-700 dark:text-slate-300">#{stop.stopId}</span>
-              <span className="text-slate-300 dark:text-slate-600">•</span>
+            <div className="flex items-center gap-1 text-[10px] leading-3 text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-amber-800 dark:text-amber-200">#{stop.stopId}</span>
+              <span className="text-amber-300/80 dark:text-amber-300/30">•</span>
               <span className="truncate">{distanceSummary}</span>
             </div>
           </button>
@@ -88,10 +88,10 @@ export default function BusStopItem({
             onClick={handleToggleFavorite}
             variant="ghost"
             size="sm"
-            className="h-7 w-7 shrink-0 rounded-full px-0 text-slate-400 transition-transform hover:bg-white/80 hover:text-slate-700 active:scale-90 dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-slate-200"
+            className="h-6 w-6 shrink-0 rounded-full px-0 text-amber-700/65 transition-transform hover:bg-white/80 hover:text-amber-900 active:scale-90 dark:text-amber-200/65 dark:hover:bg-white/10 dark:hover:text-amber-100"
             aria-label="Eliminar de favoritos"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3" />
           </Button>
         </div>
       </li>

@@ -38,18 +38,18 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
   const noMatches = Boolean(normalizedQuery && favoriteList.length === 0 && regularList.length === 0)
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {favoriteList.length > 0 && (
-        <section className="rounded-[28px] border border-white/80 bg-white/80 p-3 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
-          <div className="mb-2 flex items-center justify-between gap-3 px-1">
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+        <section className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/95 via-white/90 to-orange-50/80 p-2 shadow-[0_16px_45px_-28px_rgba(245,158,11,0.8)] ring-1 ring-amber-100/80 backdrop-blur dark:border-amber-300/25 dark:from-amber-300/15 dark:via-slate-950/85 dark:to-orange-400/10 dark:shadow-[0_18px_55px_-32px_rgba(251,191,36,0.55)] dark:ring-amber-300/20">
+          <div className="mb-1.5 flex items-center justify-between gap-3 px-2">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-200">
               Favoritas
             </h3>
-            <span className="rounded-full border border-slate-200 bg-slate-50/90 px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
+            <span className="rounded-full border border-amber-200/80 bg-amber-100/80 px-2 py-0.5 text-[10px] font-bold text-amber-800 shadow-sm shadow-amber-200/40 dark:border-amber-300/25 dark:bg-amber-300/15 dark:text-amber-100 dark:shadow-black/20">
               {favoriteList.length}
             </span>
           </div>
-          <ul className="divide-y divide-slate-200/70 dark:divide-white/10">
+          <ul className="divide-y divide-amber-200/70 dark:divide-amber-300/15">
             {favoriteList.map((stop) => (
               <BusStopItem
                 key={`fav-${stop.stopId}`}
