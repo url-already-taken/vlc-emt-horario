@@ -1,5 +1,0 @@
-<resources>
-  <string name="app_name">ParadaYa Android</string>
-  <string name="location_permission_title">Геолокация</string>
-  <string name="location_permission_body">Нужна для подсчета расстояния до остановок.</string>
-</resources>

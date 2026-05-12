@@ -4,6 +4,7 @@ import BusStopItem from "./BusStopItem"
 import { useBusStops } from "../../lib/BusStopContext"
 import { calculateDistance } from "../../lib/geoUtils"
 import type { BusStop } from "../../lib/busStopTypes"
+import { filterStopsByQuery } from "../../lib/busStopService"
 
 interface BusStopListProps {
   sortBy: "nearest" | "soonest"
@@ -17,15 +18,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
-  const searchFilteredStops = useMemo(() => {
-    if (!normalizedQuery) return filteredStops
-    return filteredStops.filter((stop) => {
-      const nameMatch = stop.name?.toLowerCase().includes(normalizedQuery)
-      const codeMatch = stop.stopId?.toLowerCase().includes(normalizedQuery)
-      const areaMatch = stop.ubica?.toLowerCase().includes(normalizedQuery)
-      return Boolean(nameMatch || codeMatch || areaMatch)
-    })
-  }, [filteredStops, normalizedQuery])
+  const searchFilteredStops = useMemo(() => filterStopsByQuery(filteredStops, normalizedQuery), [filteredStops, normalizedQuery])
 
   const sortedStops = useMemo(() => {
     if (!searchFilteredStops.length) return []

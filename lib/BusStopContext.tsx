@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react"
-import { fetchBusStops } from "./busStopService"
+import { fetchBusStops, readCachedBusStops } from "./busStopService"
 import { distanceKm } from "./geoUtils"
 import { BusStop, StopDirectionMap } from "./busStopTypes"
 import { computeRouteDirections } from "./directionUtils"
@@ -37,19 +37,37 @@ export function BusStopProvider({ children }: { children: React.ReactNode }) {
   const [favoriteStops, setFavoriteStops] = useState<FavoriteStopsMap>({})
 
   useEffect(() => {
+    const cached = readCachedBusStops()
+    const hasCachedStops = cached.stops.length > 0
+
+    if (hasCachedStops) {
+      setStops(cached.stops)
+      setLoading(false)
+    }
+
     const loadStops = async () => {
+      if (hasCachedStops && cached.isFresh) {
+        return
+      }
+
       try {
-        const apiUrl =
-          "https://geoportal.emtvalencia.es/opentripplanner-api-webapp/ws/metadata/stopsInExtent?lowerCornerLon=-0.4187679290778661&lowerCornerLat=39.431221084842264&upperCornerLon=-0.33207893371653785&upperCornerLat=39.51099400566781"
-        const fetchedStops = await fetchBusStops(apiUrl)
+        const fetchedStops = await fetchBusStops()
         setStops(fetchedStops)
+        setError(null)
       } catch (err) {
-        setError("No se pudieron cargar las paradas")
-        console.error(err)
+        if (!hasCachedStops) {
+          setError("No se pudieron cargar las paradas")
+          console.error(err)
+        } else {
+          console.warn("No se pudieron refrescar las paradas en segundo plano:", err)
+        }
       } finally {
-        setLoading(false)
+        if (!hasCachedStops) {
+          setLoading(false)
+        }
       }
     }
+
     loadStops()
   }, [])
 

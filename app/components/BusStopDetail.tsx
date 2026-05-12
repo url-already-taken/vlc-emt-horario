@@ -41,13 +41,17 @@ export default function BusStopDetail({ stop, onClose, userLocation }: BusStopDe
             <p>Ubicación: {stop.ubica}</p>
             <div>
               <h3 className="font-semibold">Líneas:</h3>
-              <ul className="list-disc list-inside">
-                {stop.routes.map((route) => (
-                  <li key={route.id_linea}>
-                    {route.SN} - {route.headSign}
-                  </li>
-                ))}
-              </ul>
+              {stop.routes.length > 0 ? (
+                <ul className="list-disc list-inside">
+                  {stop.routes.map((route) => (
+                    <li key={route.id_linea}>
+                      {route.SN} - {route.headSign}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">Las líneas se consultan en tiempo real desde la llegada de buses.</p>
+              )}
             </div>
             <BusArrivalInfo stopId={stop.stopId} directions={routeDirections[stop.stopId]} />
             <div className="pt-2">

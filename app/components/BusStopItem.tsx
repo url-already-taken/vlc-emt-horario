@@ -212,10 +212,7 @@ function deg2rad(deg: number): number {
 }
 
 function formatStopName(name: string): string {
-  if (name.includes(" - ")) {
-    return name.split(" - ")[1]
-  }
-  return name
+  return name.trim()
 }
 
 function formatDistanceSummary(userLat: number, userLon: number, stopLat: number, stopLon: number): string {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import type { BusStop } from "../lib/busStopTypes"
 import SearchBar from "./components/SearchBar"
 import BusStopList from "./components/BusStopList"
@@ -11,6 +11,7 @@ import { BusStopProvider, useBusStops } from "../lib/BusStopContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import StopCompass from "./components/StopCompass"
 import CompassOverlay from "./components/CompassOverlay"
+import { filterStopsByQuery } from "../lib/busStopService"
 
 export const dynamic = "force-dynamic"
 
@@ -130,12 +131,15 @@ function HomeContent() {
   const [showAllStations, setShowAllStations] = useState(false)
   const [showCompassOverlay, setShowCompassOverlay] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [distanceFilterValue, setDistanceFilterValue] = useState("Infinity")
   const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
   const [cachedLocationSavedAt, setCachedLocationSavedAt] = useState<number | null>(null)
-  const { setUserLocation, setDistanceFilter, loading, error, userLocation } = useBusStops()
+  const { stops, filteredStops, setUserLocation, setDistanceFilter, loading, error, userLocation } = useBusStops()
   const hasCachedLocation = cachedLocationSavedAt !== null
   const cachedLocationTime = formatLocationTimestamp(cachedLocationSavedAt)
+  const visibleStops = useMemo(() => filterStopsByQuery(filteredStops, searchQuery), [filteredStops, searchQuery])
+  const hasActiveFilters = Boolean(searchQuery.trim()) || distanceFilterValue !== "Infinity"
 
   const requestUserLocation = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -264,16 +268,18 @@ function HomeContent() {
   }, [])
 
   const handleDistanceFilterChange = (value: string) => {
+    setDistanceFilterValue(value)
     setDistanceFilter(Number.parseFloat(value))
   }
 
+  const handleResetFilters = useCallback(() => {
+    setSearchQuery("")
+    setDistanceFilterValue("Infinity")
+    setDistanceFilter(Number.POSITIVE_INFINITY)
+  }, [setDistanceFilter])
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl overflow-x-hidden px-4 py-4 sm:py-6">
-      <header className="mb-4 rounded-[28px] border border-white/80 bg-white/85 px-4 py-4 shadow-sm shadow-slate-200/60 backdrop-blur sm:px-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Valencia EMT</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">ParadaYa</h1>
-        <p className="mt-1 text-sm text-slate-500">Paradas cercanas, favoritos y tiempos en una vista más compacta.</p>
-      </header>
       {showCompassOverlay && <CompassOverlay onClose={handleCompassClose} onOpenStop={setSelectedStop} />}
       {showAllStations ? (
         <>
@@ -286,6 +292,42 @@ function HomeContent() {
         <>
           <section className="mb-4 rounded-[28px] border border-white/80 bg-white/80 p-3 shadow-sm shadow-slate-200/50 backdrop-blur sm:p-4">
             <SearchBar query={searchQuery} onQueryChange={handleQueryChange} onSearch={handleSearch} />
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-slate-50/90 px-3 py-1 font-medium text-slate-700">
+                {visibleStops.length} visibles
+                {filteredStops.length !== stops.length ? ` de ${filteredStops.length} cercanas` : ` de ${stops.length} total`}
+              </span>
+              {searchQuery.trim() && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-full px-3 text-xs text-slate-600"
+                  onClick={() => setSearchQuery("")}
+                >
+                  Borrar búsqueda
+                </Button>
+              )}
+              {distanceFilterValue !== "Infinity" && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-full px-3 text-xs text-slate-600"
+                  onClick={() => handleDistanceFilterChange("Infinity")}
+                >
+                  Quitar radio
+                </Button>
+              )}
+              {hasActiveFilters && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-full px-3 text-xs text-slate-600"
+                  onClick={handleResetFilters}
+                >
+                  Resetear filtros
+                </Button>
+              )}
+            </div>
             {geoPermissionState === "denied" && !hasCachedLocation && (
               <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 <span>Acceso a ubicación bloqueado. Puedes reintentar tras habilitarlo en el navegador.</span>
@@ -323,7 +365,7 @@ function HomeContent() {
             )}
             <div className="flex flex-wrap items-center gap-2">
               <div className="w-full sm:w-auto">
-                <Select onValueChange={handleDistanceFilterChange}>
+                <Select value={distanceFilterValue} onValueChange={handleDistanceFilterChange}>
                   <SelectTrigger className="h-10 w-full rounded-xl border-slate-200 bg-white/90 shadow-sm sm:w-[190px]">
                     <SelectValue placeholder="Filtrar por distancia" />
                   </SelectTrigger>

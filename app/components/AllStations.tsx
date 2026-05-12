@@ -53,7 +53,9 @@ export default function AllStations() {
             <h3 className="font-semibold">{stop.name}</h3>
             <p className="text-sm text-gray-600">ID: {stop.stopId}</p>
             <p className="text-sm text-gray-600">Ubicación: {stop.ubica}</p>
-            <p className="text-sm text-gray-600">Líneas: {stop.routes.map((route) => route.SN).join(", ")}</p>
+            <p className="text-sm text-gray-600">
+              Líneas: {stop.routes.length > 0 ? stop.routes.map((route) => route.SN).join(", ") : "Se cargan en tiempo real"}
+            </p>
           </li>
         ))}
       </ul>

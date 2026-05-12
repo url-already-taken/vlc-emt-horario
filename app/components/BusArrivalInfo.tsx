@@ -6,6 +6,7 @@ import type { RouteDirectionInfo } from "../../lib/busStopTypes"
 
 interface Bus {
   line: string
+  destination: string
   minutes: string
 }
 
@@ -51,23 +52,27 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
   }, [fetchData])
 
   function parseXml(xml: string): Bus[] {
-    const busBlocks = xml.match(/<bus>[\s\S]*?<\/bus>/g) || []
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, "application/xml")
+    const busNodes = Array.from(doc.getElementsByTagName("bus"))
 
-    const results: Bus[] = []
+    return busNodes
+      .map((busNode) => {
+        const line = busNode.getElementsByTagName("linea")[0]?.textContent?.trim() ?? ""
+        const destination = busNode.getElementsByTagName("destino")[0]?.textContent?.trim() ?? ""
+        const minutes = busNode.getElementsByTagName("minutos")[0]?.textContent?.trim() ?? ""
 
-    for (const block of busBlocks) {
-      const lineaMatch = block.match(/<linea>([^<]+)<\/linea>/)
-      const minutosMatch = block.match(/<minutos>([^<]+)<\/minutos>/)
+        if (!line || !minutes) {
+          return null
+        }
 
-      if (lineaMatch && minutosMatch) {
-        results.push({
-          line: lineaMatch[1],
-          minutes: minutosMatch[1],
-        })
-      }
-    }
-
-    return results
+        return {
+          line,
+          destination,
+          minutes,
+        }
+      })
+      .filter((bus): bus is Bus => bus !== null)
   }
 
   const directionByLine = useMemo(() => {
@@ -113,7 +118,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
                 <li
                   key={`${stopId}-favorite-${index}`}
                   className="inline-flex overflow-hidden rounded-full border border-slate-200/80 bg-white shadow-sm shadow-slate-200/70"
-                  title={formatHeadsign(direction?.headSign) ?? bus.line}
+                  title={formatDestination(bus.destination) ?? formatHeadsign(direction?.headSign) ?? bus.line}
                 >
                   <span
                     className={`inline-flex min-w-[2rem] items-center justify-center px-2 py-1 text-[11px] font-black leading-none tracking-[0.02em] ${lineClass}`}
@@ -163,7 +168,7 @@ export default function BusArrivalInfo({ stopId, directions = [], variant = "def
                     </span>
                     <div className="min-w-0">
                       <div className="font-medium text-gray-800 truncate">
-                        {formatHeadsign(direction?.headSign) ?? "—"}
+                        {formatDestination(bus.destination) ?? formatHeadsign(direction?.headSign) ?? "—"}
                       </div>
                     </div>
                   </div>
@@ -202,6 +207,17 @@ function formatHeadsign(headsign?: string): string | undefined {
     return headsign.split(" - ")[1]
   }
   return headsign
+}
+
+function formatDestination(destination?: string): string | undefined {
+  if (!destination) {
+    return undefined
+  }
+
+  return destination
+    .replace(/\s+/g, " ")
+    .replace(/\.+/g, ".")
+    .trim()
 }
 
 function formatCompactMinutes(minutes: string): string {
