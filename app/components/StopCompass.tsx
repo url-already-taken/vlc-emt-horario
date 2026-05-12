@@ -66,10 +66,11 @@ export default function StopCompass({ isActive, onToggle }: StopCompassProps) {
       onClick={handleClick}
       variant={isActive ? "default" : "outline"}
       size="sm"
+      aria-pressed={isActive}
       className={
         isActive
-          ? "h-10 rounded-xl bg-slate-900 px-4 text-xs shadow-sm"
-          : "h-10 rounded-xl border-slate-200 bg-white/90 px-4 text-xs text-slate-700"
+          ? "h-10 rounded-xl bg-slate-950 px-4 text-xs font-semibold text-white shadow-sm shadow-slate-900/20 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+          : "h-10 rounded-xl border-slate-200 bg-white/90 px-4 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-white/10"
       }
     >
       {isActive ? <X className="mr-2 h-4 w-4" /> : <Compass className="mr-2 h-4 w-4" />}

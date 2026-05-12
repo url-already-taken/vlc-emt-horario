@@ -40,14 +40,16 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
   return (
     <div className="space-y-5">
       {favoriteList.length > 0 && (
-        <section className="rounded-[24px] border border-amber-200/70 bg-amber-50/60 p-2.5 shadow-sm shadow-amber-100/40 sm:p-3">
-          <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-900">Favoritas</h3>
-            <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+        <section className="rounded-[28px] border border-white/80 bg-white/80 p-3 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
+          <div className="mb-2 flex items-center justify-between gap-3 px-1">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+              Favoritas
+            </h3>
+            <span className="rounded-full border border-slate-200 bg-slate-50/90 px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
               {favoriteList.length}
             </span>
           </div>
-          <ul className="divide-y divide-amber-200/70">
+          <ul className="divide-y divide-slate-200/70 dark:divide-white/10">
             {favoriteList.map((stop) => (
               <BusStopItem
                 key={`fav-${stop.stopId}`}
@@ -66,7 +68,7 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
       )}
       <section>
         {favoriteList.length > 0 && (
-          <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             Paradas cercanas
           </div>
         )}
@@ -85,12 +87,12 @@ export default function BusStopList({ sortBy, onSelectStop, searchQuery }: BusSt
               />
             ))}
           {noMatches && (
-            <li className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-sm text-slate-500">
+            <li className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-sm text-slate-500 dark:border-white/15 dark:bg-slate-950/50 dark:text-slate-400">
               No encontramos paradas que coincidan con "{searchQuery}".
             </li>
           )}
           {!noMatches && regularList.length === 0 && favoriteList.length === 0 && (
-            <li className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-sm text-slate-500">
+            <li className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center text-sm text-slate-500 dark:border-white/15 dark:bg-slate-950/50 dark:text-slate-400">
               No hay paradas disponibles
             </li>
           )}

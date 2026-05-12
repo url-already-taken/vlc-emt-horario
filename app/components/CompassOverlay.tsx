@@ -29,35 +29,35 @@ const STOP_ACCENTS = [
     stroke: "#14b8a6",
     dotClass: "bg-teal-500",
     badgeClass: "bg-teal-500 text-white",
-    chipClass: "bg-teal-50 text-teal-800 ring-teal-200",
+    chipClass: "bg-teal-50 text-teal-800 ring-teal-200 dark:bg-teal-300/10 dark:text-teal-100 dark:ring-teal-300/20",
   },
   {
     fill: "#1d4ed8",
     stroke: "#60a5fa",
     dotClass: "bg-blue-500",
     badgeClass: "bg-blue-500 text-white",
-    chipClass: "bg-blue-50 text-blue-800 ring-blue-200",
+    chipClass: "bg-blue-50 text-blue-800 ring-blue-200 dark:bg-blue-300/10 dark:text-blue-100 dark:ring-blue-300/20",
   },
   {
     fill: "#b45309",
     stroke: "#f59e0b",
     dotClass: "bg-amber-500",
     badgeClass: "bg-amber-500 text-white",
-    chipClass: "bg-amber-50 text-amber-800 ring-amber-200",
+    chipClass: "bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-300/10 dark:text-amber-100 dark:ring-amber-300/20",
   },
   {
     fill: "#be123c",
     stroke: "#fb7185",
     dotClass: "bg-rose-500",
     badgeClass: "bg-rose-500 text-white",
-    chipClass: "bg-rose-50 text-rose-800 ring-rose-200",
+    chipClass: "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-300/10 dark:text-rose-100 dark:ring-rose-300/20",
   },
   {
     fill: "#334155",
     stroke: "#94a3b8",
     dotClass: "bg-slate-500",
     badgeClass: "bg-slate-500 text-white",
-    chipClass: "bg-slate-100 text-slate-800 ring-slate-200",
+    chipClass: "bg-slate-100 text-slate-800 ring-slate-200 dark:bg-white/10 dark:text-slate-100 dark:ring-white/15",
   },
 ] as const
 
@@ -189,19 +189,21 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
   const headingLabel = hasSignal ? `${Math.round(heading)}° ${bearingToCompassLabel(heading)}` : "Calibrando"
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/45 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 backdrop-blur-md" onClick={onClose}>
       <div className="min-h-full p-3 sm:p-6">
         <section
-          className="mx-auto max-w-6xl rounded-[36px] border border-white/60 bg-white/80 p-4 shadow-2xl shadow-slate-950/20 backdrop-blur-xl sm:p-6"
+          className="mx-auto max-w-6xl rounded-[32px] border border-white/80 bg-white/85 p-4 shadow-xl shadow-slate-950/20 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85 dark:shadow-black/40 sm:p-6"
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">Modo brújula</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
+                Modo brújula
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
                 Las 5 paradas mas cercanas, con rumbo y tiempos
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                 El mapa queda fijo, la aguja sigue tu movil y cada tarjeta ya muestra proximos autobuses y acceso a
                 favoritos.
               </p>
@@ -217,7 +219,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-10 w-10 rounded-full border-white/70 bg-white/90"
+                className="h-10 w-10 rounded-full border-slate-200 bg-white/90 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-white/10"
                 onClick={onClose}
                 aria-label="Cerrar brújula"
               >
@@ -227,24 +229,26 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
           </div>
 
           {!userLocation ? (
-            <div className="mt-6 rounded-[32px] border border-dashed border-slate-300 bg-slate-50/90 p-8 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white">
+            <div className="mt-6 rounded-[28px] border border-dashed border-slate-300 bg-slate-50/90 p-8 text-center dark:border-white/15 dark:bg-white/5">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-sm shadow-slate-900/20 dark:bg-white dark:text-slate-950">
                 <LocateFixed className="h-6 w-6" />
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-slate-900">Activa tu ubicación para usar esta vista</h3>
-              <p className="mt-2 text-sm text-slate-600">
+              <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Activa tu ubicación para usar esta vista
+              </h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                 La brújula necesita tu posición para centrar el mapa y colocarte respecto a las paradas cercanas.
               </p>
             </div>
           ) : (
             <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
               <div className="space-y-4">
-                <div className="rounded-[32px] border border-white/70 bg-slate-950/95 p-3 shadow-xl shadow-slate-900/20">
-                  <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-slate-900">
+                <div className="rounded-[28px] border border-slate-200/80 bg-white/85 p-2.5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/75 dark:shadow-black/30">
+                  <div className="relative overflow-hidden rounded-[22px] border border-slate-200/80 bg-slate-100 dark:border-white/10 dark:bg-slate-950">
                     <img
                       src={mapSrc}
                       alt="Mapa de las paradas más cercanas"
-                      className="block w-full"
+                      className="block w-full dark:brightness-[0.82] dark:contrast-[1.08]"
                       draggable={false}
                     />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.02),rgba(15,23,42,0.32))]" />
@@ -255,17 +259,19 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                       stops={overlayData?.stopSummaries ?? []}
                     />
                     <div className="pointer-events-none absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/85">
-                      <span className="rounded-full bg-slate-950/55 px-3 py-1 backdrop-blur">Norte fijo</span>
-                      <span className="rounded-full bg-slate-950/55 px-3 py-1 backdrop-blur">
+                      <span className="rounded-full border border-white/15 bg-slate-950/60 px-3 py-1 backdrop-blur">
+                        Norte fijo
+                      </span>
+                      <span className="rounded-full border border-white/15 bg-slate-950/60 px-3 py-1 backdrop-blur">
                         {overlayData?.mapSideMeters ?? MAP_FALLBACK_SIDE_METERS} m
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                    <LegendDot color="bg-slate-900" label="Tu posición" />
+                <div className="rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                    <LegendDot color="bg-slate-900 dark:bg-white" label="Tu posición" />
                     {(overlayData?.stopSummaries ?? []).map((stop, index) => (
                       <LegendDot
                         key={`${stop.stopId}-legend`}
@@ -274,7 +280,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                       />
                     ))}
                   </div>
-                  <p className="mt-3 text-sm text-slate-600">
+                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
                     Los numeros del mapa coinciden con las tarjetas. La posicion relativa cambia con la orientacion
                     actual del movil.
                   </p>
@@ -282,12 +288,12 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
               </div>
 
               <div className="space-y-3">
-                <div className="rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <div className="rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
                     <MapPinned className="h-4 w-4" />
                     Paradas cercanas
                   </div>
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                     Tarjetas compactas para comparar distancia, lineas, tiempos y favoritos sin salir de la brujula.
                   </p>
                 </div>
@@ -300,7 +306,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                     return (
                       <article
                         key={summary.stopId}
-                        className="rounded-[30px] border border-white/70 bg-white/90 p-4 shadow-sm shadow-slate-200/60 backdrop-blur"
+                        className="rounded-[28px] border border-slate-200/80 bg-white/90 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -310,18 +316,20 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                               >
                                 {index + 1}
                               </span>
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                                 parada cercana
                               </span>
                             </div>
-                            <h3 className="mt-2 truncate text-base font-semibold text-slate-950">{summary.name}</h3>
-                            <p className="mt-1 text-xs text-slate-500">
+                            <h3 className="mt-2 truncate text-base font-semibold text-slate-950 dark:text-slate-100">
+                              {summary.name}
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                               #{summary.stopId} · {summary.location}
                             </p>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
+                            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white shadow-sm shadow-slate-900/20 dark:bg-white dark:text-slate-950">
                               {formatDistance(summary.distanceMeters)}
                             </span>
                             <Button
@@ -331,8 +339,8 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                               size="sm"
                               className={
                                 isFavorite
-                                  ? "rounded-full bg-slate-900 px-3 text-xs"
-                                  : "rounded-full border-slate-200 bg-white px-3 text-xs text-slate-700"
+                                  ? "rounded-full bg-slate-950 px-3 text-xs text-white shadow-sm shadow-slate-900/20 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                                  : "rounded-full border-slate-200 bg-white/90 px-3 text-xs text-slate-700 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300 dark:hover:bg-white/10"
                               }
                             >
                               {isFavorite ? "Quitar favorita" : "Guardar"}
@@ -346,7 +354,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                           >
                             {summary.relativeLabel}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-300">
                             Azimut {Math.round(summary.absoluteBearing)}°
                           </span>
                         </div>
@@ -356,23 +364,25 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                             summary.routeBadges.map((route) => (
                               <span
                                 key={`${summary.stopId}-${route}`}
-                                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700"
+                                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-300"
                               >
                                 <Route className="h-3 w-3" />
                                 {route}
                               </span>
                             ))
                           ) : (
-                            <span className="text-xs text-slate-400">Sin líneas detectadas para esta parada.</span>
+                            <span className="text-xs text-slate-400 dark:text-slate-500">
+                              Sin líneas detectadas para esta parada.
+                            </span>
                           )}
                         </div>
 
-                        <div className="mt-3 rounded-[24px] border border-slate-200/80 bg-slate-50/90 p-3">
+                        <div className="mt-3 rounded-[24px] border border-slate-200/80 bg-slate-50/90 p-3 dark:border-white/10 dark:bg-white/5">
                           <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                               Proximos buses
                             </span>
-                            <span className="text-[11px] font-medium text-slate-400">
+                            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
                               {summary.routeBadges.length ? `${summary.routeBadges.length} lineas` : "Sin lineas"}
                             </span>
                           </div>
@@ -389,7 +399,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                               }}
                               variant="ghost"
                               size="sm"
-                              className="rounded-full px-3 text-xs text-slate-600"
+                              className="rounded-full px-3 text-xs text-slate-600 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-white/10"
                             >
                               Detalles
                             </Button>
@@ -399,7 +409,7 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                     )
                   })
                 ) : (
-                  <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50/90 p-6 text-sm text-slate-600">
+                  <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50/90 p-6 text-sm text-slate-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-400">
                     No hay paradas cercanas dentro del filtro actual.
                   </div>
                 )}
@@ -482,7 +492,7 @@ function CompassMapOverlay({
 
 function StatusChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white/85 px-3 text-xs font-medium text-slate-700 shadow-sm">
+    <span className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 text-xs font-medium text-slate-700 shadow-sm dark:border-white/10 dark:bg-slate-950/75 dark:text-slate-200">
       {icon}
       {label}
     </span>
@@ -491,7 +501,7 @@ function StatusChip({ icon, label }: { icon: ReactNode; label: string }) {
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100/80 px-2.5 py-1">
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50/90 px-2.5 py-1 dark:border-white/10 dark:bg-white/10">
       <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
       {label}
     </span>
