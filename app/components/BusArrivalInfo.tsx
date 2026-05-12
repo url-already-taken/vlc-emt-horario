@@ -252,6 +252,13 @@ function formatDestination(destination?: string): string | undefined {
 function formatCompactMinutes(minutes: string): string {
   const parsedMinutes = parseEtaMinutes(minutes)
   if (parsedMinutes !== null) {
+    if (parsedMinutes >= 60) {
+      const hours = Math.floor(parsedMinutes / 60)
+      const remainingMinutes = parsedMinutes % 60
+
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
+    }
+
     return `${parsedMinutes}m`
   }
 
@@ -263,6 +270,18 @@ function parseEtaMinutes(minutes: string): number | null {
 
   if (normalized.includes("pròxim") || normalized.includes("proxim")) {
     return 0
+  }
+
+  const durationMatch = normalized.match(/^(\d{1,2}):([0-5]\d):([0-5]\d)$/)
+  if (durationMatch) {
+    const hours = Number.parseInt(durationMatch[1], 10)
+    const durationMinutes = Number.parseInt(durationMatch[2], 10)
+
+    if (Number.isNaN(hours) || Number.isNaN(durationMinutes)) {
+      return null
+    }
+
+    return hours * 60 + durationMinutes
   }
 
   const hoursMatch = normalized.match(/(\d+)\s*h\b/)
