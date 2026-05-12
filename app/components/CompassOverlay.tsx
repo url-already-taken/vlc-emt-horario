@@ -1,7 +1,7 @@
 "use client"
 
-import { type ReactNode, useEffect, useMemo } from "react"
-import { Compass, LocateFixed, MapPinned, Navigation, RefreshCw, Route, X } from "lucide-react"
+import { useEffect, useMemo } from "react"
+import { Route, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useBusStops } from "@/lib/BusStopContext"
 import { useDeviceHeading } from "@/hooks/useDeviceHeading"
@@ -64,9 +64,6 @@ const STOP_ACCENTS = [
 interface CompassOverlayProps {
   onClose: () => void
   onOpenStop?: (stop: BusStop) => void
-  onRequestLocation?: () => void
-  isRequestingLocation?: boolean
-  locationUpdatedLabel?: string | null
 }
 
 interface StopSummary {
@@ -88,12 +85,9 @@ interface StopSummary {
 export default function CompassOverlay({
   onClose,
   onOpenStop,
-  onRequestLocation,
-  isRequestingLocation = false,
-  locationUpdatedLabel,
 }: CompassOverlayProps) {
   const { nearestStops, routeDirections, userLocation, favoriteStops, toggleFavoriteStop } = useBusStops()
-  const { heading, hasSignal, isSupported } = useDeviceHeading(true)
+  const { heading, hasSignal } = useDeviceHeading(true)
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -195,14 +189,7 @@ export default function CompassOverlay({
     return `/api/mini-map?${params.toString()}`
   }, [overlayData, userLocation])
 
-  const headingLabel = hasSignal ? `${Math.round(heading)}° ${bearingToCompassLabel(heading)}` : "Calibrando"
-  const sensorLabel = isSupported ? (hasSignal ? "Sensor activo" : "Buscando señal") : "Sin sensor"
   const stopSummaries = overlayData?.stopSummaries ?? []
-  const locationActionLabel = isRequestingLocation
-    ? "Actualizando..."
-    : userLocation
-      ? "Actualizar ubicación"
-      : "Usar mi ubicación"
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-md" onClick={onClose}>
@@ -223,66 +210,8 @@ export default function CompassOverlay({
             <X className="h-5 w-5" />
           </Button>
 
-          <div className="grid gap-4 pr-12 sm:pr-14 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-lg shadow-slate-950/15 dark:bg-white dark:text-slate-950">
-                  <Compass className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Modo brújula</p>
-                  <h2 className="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50 sm:text-3xl">
-                    Paradas cercanas con rumbo y tiempos
-                  </h2>
-                </div>
-              </div>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                Vista compacta de las 5 paradas más próximas, orientada con el sensor del móvil y tiempos de llegada
-                en cada tarjeta.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 rounded-lg border border-slate-200/70 bg-slate-50/85 p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.06] lg:min-w-[20rem]">
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                <StatusChip icon={<Navigation className="h-3.5 w-3.5" />} label={headingLabel} />
-                <StatusChip icon={<Compass className="h-3.5 w-3.5" />} label={sensorLabel} />
-              </div>
-              {onRequestLocation && (
-                <LocationActionButton
-                  onClick={onRequestLocation}
-                  isLoading={isRequestingLocation}
-                  label={locationActionLabel}
-                  updatedLabel={locationUpdatedLabel}
-                  fullWidth
-                />
-              )}
-            </div>
-          </div>
-
-          {!userLocation ? (
-            <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50/90 p-8 text-center shadow-inner dark:border-white/15 dark:bg-white/[0.04]">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-300/20">
-                <LocateFixed className="h-7 w-7" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Activa tu ubicación para usar esta vista
-              </h3>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
-                La brújula necesita tu posición para centrar el mapa y colocar las paradas cercanas.
-              </p>
-              {onRequestLocation && (
-                <div className="mx-auto mt-5 max-w-sm">
-                  <LocationActionButton
-                    onClick={onRequestLocation}
-                    isLoading={isRequestingLocation}
-                    label={locationActionLabel}
-                    fullWidth
-                  />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)]">
+          {userLocation && (
+            <div className="grid gap-5 pt-12 lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)]">
               <div className="space-y-4">
                 <div className="rounded-lg border border-slate-200/70 bg-white/80 p-2 shadow-lg shadow-slate-950/5 backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/30">
                   <div className="relative overflow-hidden rounded-lg border border-slate-200/80 bg-slate-100 dark:border-white/10 dark:bg-slate-950">
@@ -295,48 +224,11 @@ export default function CompassOverlay({
                     <div className="absolute inset-0 bg-slate-950/10 dark:bg-slate-950/30" />
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_38%,rgba(15,23,42,0.24))]" />
                     <CompassMapOverlay hasSignal={hasSignal} heading={heading} stops={stopSummaries} />
-                    <div className="pointer-events-none absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase text-white">
-                      <span className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 shadow-sm backdrop-blur">
-                        Norte fijo
-                      </span>
-                      <span className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 shadow-sm backdrop-blur">
-                        {overlayData?.mapSideMeters ?? MAP_FALLBACK_SIDE_METERS} m
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-950/5 backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/25">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    <MapPinned className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-                    Referencias del mapa
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                    <LegendDot color="bg-slate-900 dark:bg-white" label="Tu posición" />
-                    {stopSummaries.map((stop, index) => (
-                      <LegendDot
-                        key={`${stop.stopId}-legend`}
-                        color={STOP_ACCENTS[index % STOP_ACCENTS.length].dotClass}
-                        label={`Parada ${index + 1}`}
-                      />
-                    ))}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <div className="rounded-lg border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-950/5 backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/25">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                      <MapPinned className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-                      Paradas cercanas
-                    </div>
-                    <span className="rounded-full bg-slate-950 px-2.5 py-1 text-xs font-semibold text-white dark:bg-white dark:text-slate-950">
-                      {stopSummaries.length}/5
-                    </span>
-                  </div>
-                </div>
-
                 {stopSummaries.length > 0 ? (
                   stopSummaries.map((summary, index) => {
                     const accent = STOP_ACCENTS[index % STOP_ACCENTS.length]
@@ -539,59 +431,6 @@ function CompassMapOverlay({
   )
 }
 
-function LocationActionButton({
-  onClick,
-  isLoading,
-  label,
-  updatedLabel,
-  fullWidth = false,
-}: {
-  onClick: () => void
-  isLoading: boolean
-  label: string
-  updatedLabel?: string | null
-  fullWidth?: boolean
-}) {
-  const Icon = isLoading ? RefreshCw : LocateFixed
-
-  return (
-    <Button
-      type="button"
-      onClick={onClick}
-      disabled={isLoading}
-      className={`h-auto min-h-12 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 ring-1 ring-cyan-300/60 hover:bg-cyan-400 focus-visible:ring-cyan-300 disabled:opacity-80 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-300/20 dark:hover:bg-cyan-200 ${
-        fullWidth ? "w-full" : "w-full sm:w-auto"
-      }`}
-    >
-      <Icon className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
-      <span className="flex flex-col items-start leading-tight">
-        <span>{label}</span>
-        {updatedLabel && !isLoading && (
-          <span className="text-[11px] font-medium text-cyan-50/90 dark:text-slate-700">Última: {updatedLabel}</span>
-        )}
-      </span>
-    </Button>
-  )
-}
-
-function StatusChip({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <span className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white/85 px-3 text-xs font-medium text-slate-700 shadow-sm dark:border-white/10 dark:bg-slate-950/75 dark:text-slate-200">
-      {icon}
-      {label}
-    </span>
-  )
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50/90 px-2.5 py-1 dark:border-white/10 dark:bg-white/10">
-      <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-      {label}
-    </span>
-  )
-}
-
 function formatStopName(name: string) {
   if (name.includes(" - ")) {
     return name.split(" - ")[1]
@@ -606,11 +445,6 @@ function formatDistance(distanceMeters: number) {
   }
 
   return `${(distanceMeters / 1000).toFixed(2)} km`
-}
-
-function bearingToCompassLabel(bearing: number) {
-  const segments = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
-  return segments[Math.round(normalizeDegrees(bearing) / 45) % segments.length]
 }
 
 function relativeBearingToLabel(relativeBearing: number) {

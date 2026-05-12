@@ -133,7 +133,7 @@ function HomeContent() {
   const [showCompassOverlay, setShowCompassOverlay] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [distanceFilterValue, setDistanceFilterValue] = useState("Infinity")
-  const [geoPermissionState, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
+  const [, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
   const [isRequestingLocation, setIsRequestingLocation] = useState(false)
   const [cachedLocationSavedAt, setCachedLocationSavedAt] = useState<number | null>(null)
@@ -295,9 +295,6 @@ function HomeContent() {
         <CompassOverlay
           onClose={handleCompassClose}
           onOpenStop={setSelectedStop}
-          onRequestLocation={requestUserLocation}
-          isRequestingLocation={isRequestingLocation}
-          locationUpdatedLabel={cachedLocationTime}
         />
       )}
       {showAllStations ? (
@@ -347,63 +344,9 @@ function HomeContent() {
                 </Button>
               )}
             </div>
-            {geoPermissionState === "denied" && !hasCachedLocation && (
-              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">
-                <span>Acceso a ubicación bloqueado. Puedes reintentar tras habilitarlo en el navegador.</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-full bg-white dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-100"
-                  onClick={requestUserLocation}
-                  disabled={isRequestingLocation}
-                >
-                  Reintentar acceso
-                </Button>
-              </div>
-            )}
             {geoPermissionError && (
               <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600 dark:border-red-300/20 dark:bg-red-300/10 dark:text-red-100">
                 <span>{geoPermissionError}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-full bg-white dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-100"
-                  onClick={requestUserLocation}
-                  disabled={isRequestingLocation}
-                >
-                  Intentar de nuevo
-                </Button>
-              </div>
-            )}
-            {!geoPermissionError && hasCachedLocation && geoPermissionState !== "granted" && (
-              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/90 px-3 py-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-300">
-                <span>
-                  Usando tu última ubicación guardada
-                  {cachedLocationTime ? ` (${cachedLocationTime})` : ""} para ordenar por cercanía.
-                </span>
-                <Button
-                  size="sm"
-                  className="rounded-full bg-cyan-500 px-3 text-white shadow-sm shadow-cyan-500/25 hover:bg-cyan-400 dark:bg-cyan-300 dark:text-slate-950 dark:hover:bg-cyan-200"
-                  onClick={requestUserLocation}
-                  disabled={isRequestingLocation}
-                >
-                  <LocateFixed className={`h-4 w-4 ${isRequestingLocation ? "animate-pulse" : ""}`} />
-                  Actualizar ubicación
-                </Button>
-              </div>
-            )}
-            {!geoPermissionError && !hasCachedLocation && geoPermissionState === "prompt" && (
-              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/90 px-3 py-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-300">
-                <span>Comparte tu ubicación para ordenar las paradas por cercanía.</span>
-                <Button
-                  size="sm"
-                  className="rounded-full bg-cyan-500 px-3 text-white shadow-sm shadow-cyan-500/25 hover:bg-cyan-400 dark:bg-cyan-300 dark:text-slate-950 dark:hover:bg-cyan-200"
-                  onClick={requestUserLocation}
-                  disabled={isRequestingLocation}
-                >
-                  <LocateFixed className={`h-4 w-4 ${isRequestingLocation ? "animate-pulse" : ""}`} />
-                  Solicitar acceso
-                </Button>
               </div>
             )}
             <div className="flex flex-wrap items-center gap-2">
