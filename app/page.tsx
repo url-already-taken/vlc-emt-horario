@@ -113,19 +113,6 @@ function persistStoredLocation(location: { latitude: number; longitude: number }
   )
 }
 
-function formatLocationTimestamp(savedAt: number | null): string | null {
-  if (!savedAt) return null
-
-  try {
-    return new Intl.DateTimeFormat("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(savedAt)
-  } catch {
-    return null
-  }
-}
-
 function HomeContent() {
   const sortBy: "nearest" | "soonest" = "nearest"
   const [selectedStop, setSelectedStop] = useState<BusStop | null>(null)
@@ -136,17 +123,11 @@ function HomeContent() {
   const [, setGeoPermissionState] = useState<PermissionState | "unknown">("unknown")
   const [geoPermissionError, setGeoPermissionError] = useState<string | null>(null)
   const [isRequestingLocation, setIsRequestingLocation] = useState(false)
-  const [cachedLocationSavedAt, setCachedLocationSavedAt] = useState<number | null>(null)
   const { stops, filteredStops, setUserLocation, setDistanceFilter, loading, error, userLocation } = useBusStops()
-  const hasCachedLocation = cachedLocationSavedAt !== null
-  const cachedLocationTime = formatLocationTimestamp(cachedLocationSavedAt)
   const visibleStops = useMemo(() => filterStopsByQuery(filteredStops, searchQuery), [filteredStops, searchQuery])
   const hasActiveFilters = Boolean(searchQuery.trim()) || distanceFilterValue !== "Infinity"
-  const locationButtonLabel = isRequestingLocation
-    ? "Actualizando..."
-    : userLocation || hasCachedLocation
-      ? "Actualizar ubicación"
-      : "Usar mi ubicación"
+  const locationButtonLabel = isRequestingLocation ? "Buscando..." : "Usar mi ubicación"
+  const showLocationRequestButton = !userLocation
 
   const requestUserLocation = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -166,7 +147,6 @@ function HomeContent() {
         const savedAt = Date.now()
 
         setUserLocation(nextLocation)
-        setCachedLocationSavedAt(savedAt)
         setGeoPermissionState("granted")
         setGeoPermissionError(null)
         setIsRequestingLocation(false)
@@ -207,7 +187,6 @@ function HomeContent() {
         latitude: storedLocation.latitude,
         longitude: storedLocation.longitude,
       })
-      setCachedLocationSavedAt(storedLocation.savedAt)
     }
 
     const handlePermissionChange = () => {
@@ -363,18 +342,17 @@ function HomeContent() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button
-                onClick={requestUserLocation}
-                disabled={isRequestingLocation}
-                size="sm"
-                className="h-12 w-full rounded-lg bg-cyan-500 px-4 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 ring-1 ring-cyan-300/60 hover:bg-cyan-400 disabled:opacity-80 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-300/20 dark:hover:bg-cyan-200 sm:w-auto"
-              >
-                <LocateFixed className={`h-5 w-5 ${isRequestingLocation ? "animate-pulse" : ""}`} />
-                <span>{locationButtonLabel}</span>
-                {cachedLocationTime && !isRequestingLocation && (
-                  <span className="hidden text-xs font-medium opacity-80 md:inline">{cachedLocationTime}</span>
-                )}
-              </Button>
+              {showLocationRequestButton && (
+                <Button
+                  onClick={requestUserLocation}
+                  disabled={isRequestingLocation}
+                  size="sm"
+                  className="h-12 w-full rounded-lg bg-cyan-500 px-4 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 ring-1 ring-cyan-300/60 hover:bg-cyan-400 disabled:opacity-80 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-300/20 dark:hover:bg-cyan-200 sm:w-auto"
+                >
+                  <LocateFixed className={`h-5 w-5 ${isRequestingLocation ? "animate-pulse" : ""}`} />
+                  <span>{locationButtonLabel}</span>
+                </Button>
+              )}
               <StopCompass
                 isActive={showCompassOverlay}
                 onToggle={handleCompassToggle}
