@@ -1,7 +1,7 @@
 "use client"
 
 import { type ReactNode, useEffect, useMemo } from "react"
-import { Compass, LocateFixed, MapPinned, Navigation, Route, X } from "lucide-react"
+import { Compass, LocateFixed, MapPinned, Navigation, RefreshCw, Route, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useBusStops } from "@/lib/BusStopContext"
 import { useDeviceHeading } from "@/hooks/useDeviceHeading"
@@ -64,6 +64,9 @@ const STOP_ACCENTS = [
 interface CompassOverlayProps {
   onClose: () => void
   onOpenStop?: (stop: BusStop) => void
+  onRequestLocation?: () => void
+  isRequestingLocation?: boolean
+  locationUpdatedLabel?: string | null
 }
 
 interface StopSummary {
@@ -82,7 +85,13 @@ interface StopSummary {
   directions: RouteDirectionInfo[]
 }
 
-export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayProps) {
+export default function CompassOverlay({
+  onClose,
+  onOpenStop,
+  onRequestLocation,
+  isRequestingLocation = false,
+  locationUpdatedLabel,
+}: CompassOverlayProps) {
   const { nearestStops, routeDirections, userLocation, favoriteStops, toggleFavoriteStop } = useBusStops()
   const { heading, hasSignal, isSupported } = useDeviceHeading(true)
 
@@ -187,92 +196,124 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
   }, [overlayData, userLocation])
 
   const headingLabel = hasSignal ? `${Math.round(heading)}° ${bearingToCompassLabel(heading)}` : "Calibrando"
+  const sensorLabel = isSupported ? (hasSignal ? "Sensor activo" : "Buscando señal") : "Sin sensor"
+  const stopSummaries = overlayData?.stopSummaries ?? []
+  const locationActionLabel = isRequestingLocation
+    ? "Actualizando..."
+    : userLocation
+      ? "Actualizar ubicación"
+      : "Usar mi ubicación"
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-md" onClick={onClose}>
       <div className="min-h-full p-3 sm:p-6">
         <section
-          className="mx-auto max-w-6xl rounded-[32px] border border-white/80 bg-white/85 p-4 shadow-xl shadow-slate-950/20 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85 dark:shadow-black/40 sm:p-6"
+          className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-white/75 bg-white/90 p-4 shadow-2xl shadow-slate-950/25 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90 dark:shadow-black/50 sm:p-6"
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-2xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-                Modo brújula
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
-                Las 5 paradas mas cercanas, con rumbo y tiempos
-              </h2>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                El mapa queda fijo, la aguja sigue tu movil y cada tarjeta ya muestra proximos autobuses y acceso a
-                favoritos.
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400" />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="absolute right-3 top-3 z-20 h-11 w-11 rounded-full border-slate-200/80 bg-white/95 text-slate-700 shadow-lg shadow-slate-950/10 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-black/35 dark:hover:bg-slate-800 sm:right-5 sm:top-5"
+            onClick={onClose}
+            aria-label="Cerrar brújula"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+
+          <div className="grid gap-4 pr-12 sm:pr-14 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-lg shadow-slate-950/15 dark:bg-white dark:text-slate-950">
+                  <Compass className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Modo brújula</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50 sm:text-3xl">
+                    Paradas cercanas con rumbo y tiempos
+                  </h2>
+                </div>
+              </div>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Vista compacta de las 5 paradas más próximas, orientada con el sensor del móvil y tiempos de llegada
+                en cada tarjeta.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <StatusChip icon={<Navigation className="h-3.5 w-3.5" />} label={headingLabel} />
-              <StatusChip
-                icon={<Compass className="h-3.5 w-3.5" />}
-                label={isSupported ? (hasSignal ? "Sensor activo" : "Buscando señal") : "Sin sensor"}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-full border-slate-200 bg-white/90 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-white/10"
-                onClick={onClose}
-                aria-label="Cerrar brújula"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+            <div className="flex flex-col gap-3 rounded-lg border border-slate-200/70 bg-slate-50/85 p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.06] lg:min-w-[20rem]">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                <StatusChip icon={<Navigation className="h-3.5 w-3.5" />} label={headingLabel} />
+                <StatusChip icon={<Compass className="h-3.5 w-3.5" />} label={sensorLabel} />
+              </div>
+              {onRequestLocation && (
+                <LocationActionButton
+                  onClick={onRequestLocation}
+                  isLoading={isRequestingLocation}
+                  label={locationActionLabel}
+                  updatedLabel={locationUpdatedLabel}
+                  fullWidth
+                />
+              )}
             </div>
           </div>
 
           {!userLocation ? (
-            <div className="mt-6 rounded-[28px] border border-dashed border-slate-300 bg-slate-50/90 p-8 text-center dark:border-white/15 dark:bg-white/5">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-sm shadow-slate-900/20 dark:bg-white dark:text-slate-950">
-                <LocateFixed className="h-6 w-6" />
+            <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50/90 p-8 text-center shadow-inner dark:border-white/15 dark:bg-white/[0.04]">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-300/20">
+                <LocateFixed className="h-7 w-7" />
               </div>
               <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
                 Activa tu ubicación para usar esta vista
               </h3>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                La brújula necesita tu posición para centrar el mapa y colocarte respecto a las paradas cercanas.
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
+                La brújula necesita tu posición para centrar el mapa y colocar las paradas cercanas.
               </p>
+              {onRequestLocation && (
+                <div className="mx-auto mt-5 max-w-sm">
+                  <LocationActionButton
+                    onClick={onRequestLocation}
+                    isLoading={isRequestingLocation}
+                    label={locationActionLabel}
+                    fullWidth
+                  />
+                </div>
+              )}
             </div>
           ) : (
-            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)]">
               <div className="space-y-4">
-                <div className="rounded-[28px] border border-slate-200/80 bg-white/85 p-2.5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/75 dark:shadow-black/30">
-                  <div className="relative overflow-hidden rounded-[22px] border border-slate-200/80 bg-slate-100 dark:border-white/10 dark:bg-slate-950">
+                <div className="rounded-lg border border-slate-200/70 bg-white/80 p-2 shadow-lg shadow-slate-950/5 backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/30">
+                  <div className="relative overflow-hidden rounded-lg border border-slate-200/80 bg-slate-100 dark:border-white/10 dark:bg-slate-950">
                     <img
                       src={mapSrc}
                       alt="Mapa de las paradas más cercanas"
-                      className="block w-full dark:brightness-[0.82] dark:contrast-[1.08]"
+                      className="block aspect-square w-full object-cover dark:brightness-[0.78] dark:contrast-[1.12]"
                       draggable={false}
                     />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.02),rgba(15,23,42,0.32))]" />
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_35%,rgba(15,23,42,0.18))]" />
-                    <CompassMapOverlay
-                      hasSignal={hasSignal}
-                      heading={heading}
-                      stops={overlayData?.stopSummaries ?? []}
-                    />
-                    <div className="pointer-events-none absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/85">
-                      <span className="rounded-full border border-white/15 bg-slate-950/60 px-3 py-1 backdrop-blur">
+                    <div className="absolute inset-0 bg-slate-950/10 dark:bg-slate-950/30" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_38%,rgba(15,23,42,0.24))]" />
+                    <CompassMapOverlay hasSignal={hasSignal} heading={heading} stops={stopSummaries} />
+                    <div className="pointer-events-none absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase text-white">
+                      <span className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 shadow-sm backdrop-blur">
                         Norte fijo
                       </span>
-                      <span className="rounded-full border border-white/15 bg-slate-950/60 px-3 py-1 backdrop-blur">
+                      <span className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 shadow-sm backdrop-blur">
                         {overlayData?.mapSideMeters ?? MAP_FALLBACK_SIDE_METERS} m
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
+                <div className="rounded-lg border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-950/5 backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/25">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <MapPinned className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                    Referencias del mapa
+                  </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                     <LegendDot color="bg-slate-900 dark:bg-white" label="Tu posición" />
-                    {(overlayData?.stopSummaries ?? []).map((stop, index) => (
+                    {stopSummaries.map((stop, index) => (
                       <LegendDot
                         key={`${stop.stopId}-legend`}
                         color={STOP_ACCENTS[index % STOP_ACCENTS.length].dotClass}
@@ -280,136 +321,144 @@ export default function CompassOverlay({ onClose, onOpenStop }: CompassOverlayPr
                       />
                     ))}
                   </div>
-                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                    Los numeros del mapa coinciden con las tarjetas. La posicion relativa cambia con la orientacion
-                    actual del movil.
-                  </p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <div className="rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                    <MapPinned className="h-4 w-4" />
-                    Paradas cercanas
+                <div className="rounded-lg border border-slate-200/70 bg-white/80 p-4 shadow-sm shadow-slate-950/5 backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/25">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      <MapPinned className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                      Paradas cercanas
+                    </div>
+                    <span className="rounded-full bg-slate-950 px-2.5 py-1 text-xs font-semibold text-white dark:bg-white dark:text-slate-950">
+                      {stopSummaries.length}/5
+                    </span>
                   </div>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    Tarjetas compactas para comparar distancia, lineas, tiempos y favoritos sin salir de la brujula.
-                  </p>
                 </div>
 
-                {(overlayData?.stopSummaries ?? []).length > 0 ? (
-                  (overlayData?.stopSummaries ?? []).map((summary, index) => {
+                {stopSummaries.length > 0 ? (
+                  stopSummaries.map((summary, index) => {
                     const accent = STOP_ACCENTS[index % STOP_ACCENTS.length]
                     const isFavorite = Boolean(favoriteStops[summary.stopId])
 
                     return (
                       <article
                         key={summary.stopId}
-                        className="rounded-[28px] border border-slate-200/80 bg-white/90 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30"
+                        className="overflow-hidden rounded-lg border border-slate-200/70 bg-white/[0.92] shadow-lg shadow-slate-950/5 backdrop-blur transition-colors hover:border-cyan-200 dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/25 dark:hover:border-cyan-300/40"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${accent.badgeClass}`}
-                              >
-                                {index + 1}
-                              </span>
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                                parada cercana
-                              </span>
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${accent.badgeClass}`}
+                                >
+                                  {index + 1}
+                                </span>
+                                <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+                                  parada cercana
+                                </span>
+                              </div>
+                              <h3 className="mt-2 truncate text-base font-semibold text-slate-950 dark:text-slate-100">
+                                {summary.name}
+                              </h3>
+                              <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                                #{summary.stopId} · {summary.location}
+                              </p>
                             </div>
-                            <h3 className="mt-2 truncate text-base font-semibold text-slate-950 dark:text-slate-100">
-                              {summary.name}
-                            </h3>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              #{summary.stopId} · {summary.location}
-                            </p>
-                          </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white shadow-sm shadow-slate-900/20 dark:bg-white dark:text-slate-950">
-                              {formatDistance(summary.distanceMeters)}
-                            </span>
-                            <Button
-                              type="button"
-                              onClick={() => toggleFavoriteStop(summary.stopId)}
-                              variant={isFavorite ? "default" : "outline"}
-                              size="sm"
-                              className={
-                                isFavorite
-                                  ? "rounded-full bg-slate-950 px-3 text-xs text-white shadow-sm shadow-slate-900/20 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                                  : "rounded-full border-slate-200 bg-white/90 px-3 text-xs text-slate-700 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300 dark:hover:bg-white/10"
-                              }
-                            >
-                              {isFavorite ? "Quitar favorita" : "Guardar"}
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${accent.chipClass}`}
-                          >
-                            {summary.relativeLabel}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-300">
-                            Azimut {Math.round(summary.absoluteBearing)}°
-                          </span>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {summary.routeBadges.length ? (
-                            summary.routeBadges.map((route) => (
-                              <span
-                                key={`${summary.stopId}-${route}`}
-                                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-300"
-                              >
-                                <Route className="h-3 w-3" />
-                                {route}
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white shadow-sm shadow-slate-900/20 dark:bg-white dark:text-slate-950">
+                                {formatDistance(summary.distanceMeters)}
                               </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-slate-400 dark:text-slate-500">
-                              Sin líneas detectadas para esta parada.
-                            </span>
-                          )}
+                              <Button
+                                type="button"
+                                onClick={() => toggleFavoriteStop(summary.stopId)}
+                                variant={isFavorite ? "default" : "outline"}
+                                size="sm"
+                                className={
+                                  isFavorite
+                                    ? "h-8 rounded-full bg-cyan-500 px-3 text-xs text-white shadow-sm shadow-cyan-500/25 hover:bg-cyan-400 dark:bg-cyan-300 dark:text-slate-950 dark:hover:bg-cyan-200"
+                                    : "h-8 rounded-full border-slate-200 bg-white/90 px-3 text-xs text-slate-700 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/60 dark:text-slate-300 dark:hover:bg-white/10"
+                                }
+                              >
+                                {isFavorite ? "Favorita" : "Guardar"}
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-200/70 dark:bg-white/[0.05] dark:ring-white/10">
+                              <p className="text-[11px] font-medium uppercase text-slate-500 dark:text-slate-400">
+                                Rumbo
+                              </p>
+                              <p className={`mt-1 text-sm font-semibold ${accent.chipClass} rounded-md px-2 py-1 ring-1`}>
+                                {summary.relativeLabel}
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-200/70 dark:bg-white/[0.05] dark:ring-white/10">
+                              <p className="text-[11px] font-medium uppercase text-slate-500 dark:text-slate-400">
+                                Azimut
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                {Math.round(summary.absoluteBearing)}°
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {summary.routeBadges.length ? (
+                              summary.routeBadges.map((route) => (
+                                <span
+                                  key={`${summary.stopId}-${route}`}
+                                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-300"
+                                >
+                                  <Route className="h-3 w-3" />
+                                  {route}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-slate-400 dark:text-slate-500">
+                                Sin líneas detectadas para esta parada.
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="mt-3 rounded-[24px] border border-slate-200/80 bg-slate-50/90 p-3 dark:border-white/10 dark:bg-white/5">
+                        <div className="border-t border-slate-200/70 bg-slate-50/80 px-4 py-3 dark:border-white/10 dark:bg-slate-950/35">
                           <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                              Proximos buses
+                            <span className="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">
+                              Próximos buses
                             </span>
                             <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                              {summary.routeBadges.length ? `${summary.routeBadges.length} lineas` : "Sin lineas"}
+                              {summary.routeBadges.length ? `${summary.routeBadges.length} líneas` : "Sin líneas"}
                             </span>
                           </div>
                           <BusArrivalInfo stopId={summary.stopId} directions={summary.directions} variant="compact" />
-                        </div>
 
-                        {onOpenStop && (
-                          <div className="mt-3 flex justify-end">
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                onOpenStop(summary.rawStop)
-                                onClose()
-                              }}
-                              variant="ghost"
-                              size="sm"
-                              className="rounded-full px-3 text-xs text-slate-600 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-white/10"
-                            >
-                              Detalles
-                            </Button>
-                          </div>
-                        )}
+                          {onOpenStop && (
+                            <div className="mt-3 flex justify-end">
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  onOpenStop(summary.rawStop)
+                                  onClose()
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 rounded-full px-3 text-xs text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"
+                              >
+                                Detalles
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </article>
                     )
                   })
                 ) : (
-                  <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50/90 p-6 text-sm text-slate-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-400">
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50/90 p-6 text-sm text-slate-600 dark:border-white/15 dark:bg-white/[0.04] dark:text-slate-400">
                     No hay paradas cercanas dentro del filtro actual.
                   </div>
                 )}
@@ -490,9 +539,44 @@ function CompassMapOverlay({
   )
 }
 
+function LocationActionButton({
+  onClick,
+  isLoading,
+  label,
+  updatedLabel,
+  fullWidth = false,
+}: {
+  onClick: () => void
+  isLoading: boolean
+  label: string
+  updatedLabel?: string | null
+  fullWidth?: boolean
+}) {
+  const Icon = isLoading ? RefreshCw : LocateFixed
+
+  return (
+    <Button
+      type="button"
+      onClick={onClick}
+      disabled={isLoading}
+      className={`h-auto min-h-12 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 ring-1 ring-cyan-300/60 hover:bg-cyan-400 focus-visible:ring-cyan-300 disabled:opacity-80 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-300/20 dark:hover:bg-cyan-200 ${
+        fullWidth ? "w-full" : "w-full sm:w-auto"
+      }`}
+    >
+      <Icon className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
+      <span className="flex flex-col items-start leading-tight">
+        <span>{label}</span>
+        {updatedLabel && !isLoading && (
+          <span className="text-[11px] font-medium text-cyan-50/90 dark:text-slate-700">Última: {updatedLabel}</span>
+        )}
+      </span>
+    </Button>
+  )
+}
+
 function StatusChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 text-xs font-medium text-slate-700 shadow-sm dark:border-white/10 dark:bg-slate-950/75 dark:text-slate-200">
+    <span className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white/85 px-3 text-xs font-medium text-slate-700 shadow-sm dark:border-white/10 dark:bg-slate-950/75 dark:text-slate-200">
       {icon}
       {label}
     </span>
