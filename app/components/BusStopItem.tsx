@@ -28,7 +28,6 @@ export default function BusStopItem({
 }: BusStopItemProps) {
   const [isVisible, setIsVisible] = useState(false)
   const ref = useRef<HTMLLIElement>(null)
-  const stopLabel = formatStopName(stop.name)
   const favoriteStopLabel = formatFavoriteStopName(stop.name)
   const distanceSummary =
     sortBy === "nearest" && userLocation
@@ -118,7 +117,7 @@ export default function BusStopItem({
     >
       <div
         aria-hidden="true"
-        className="absolute inset-0 opacity-15 dark:opacity-20 bg-cover bg-center rounded-[28px]"
+        className="absolute inset-0 rounded-[28px] bg-cover bg-center opacity-50 dark:opacity-70"
         style={{ backgroundImage: `url('/api/mini-map?lat=${stop.lat}&lon=${stop.lon}&side=1000&px=600')` }}
       />
       <div className="relative z-10">
@@ -126,7 +125,7 @@ export default function BusStopItem({
           <div className="min-w-0 flex-1">
             <button type="button" onClick={() => onSelectStop(stop)} className="min-w-0 text-left">
               <span className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-                <span className="truncate">{stopLabel}</span>
+                <span className="truncate">{favoriteStopLabel}</span>
                 {isFavorite && (
                   <span
                     className="inline-flex items-center rounded-full border border-amber-200/70 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-200"
@@ -189,7 +188,7 @@ export default function BusStopItem({
 
         {isVisible && (
           <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/5">
-            <BusArrivalInfo stopId={stop.stopId} directions={directions} />
+            <BusArrivalInfo stopId={stop.stopId} directions={directions} variant="favorite" />
           </div>
         )}
       </div>
